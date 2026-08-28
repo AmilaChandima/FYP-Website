@@ -1,0 +1,4 @@
+booking_id,booking_type,status,date,customer_name,email,phone,vehicle,battery_capacity_kwh,charging_rate_kw,initial_soc_percent,target_soc_percent,energy_required_kwh,duration_minutes,arrival_time,flexible_window_start,flexible_window_end,scheduled_start,scheduled_end,charger_id,price_lkr_per_kwh,created_at
+FIX-001,fixed,reserved,2026-08-01,Nimal Perera,nimal@example.com,+94772201144,Tesla Model 3,75,170,25,80,41.25,15,09:10,,,09:10,09:25,1,78,2026-07-31T08:30:00+05:30
+FIX-002,fixed,reserved,2026-08-01,Tharushi Silva,tharushi@example.com,+94714302255,BYD Atto 3,60.5,88,20,85,39.325,30,11:00,,,11:00,11:30,2,78,2026-07-31T09:00:00+05:30
+FLEX-001,flexible,pending,2026-08-01,Dinesh Fernando,dinesh@example.com,+94765417788,Hyundai Ioniq 5,77.4,230,20,85,50.31,15,,11:24,17:36,,,,62,2026-07-31T10:15:00+05:30
