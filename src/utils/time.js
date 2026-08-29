@@ -81,30 +81,86 @@ export function calculateChargingRequirement({
   initialSoc,
   targetSoc,
 }) {
-  const capacity = Number(batteryCapacityKwh);
-  const vehicleRate = Number(chargingRateKw);
+  const batteryCapacity = Number(batteryCapacityKwh);
+  const vehicleMaxPower = Number(chargingRateKw);
   const initial = Number(initialSoc);
   const target = Number(targetSoc);
 
-  if (!Number.isFinite(capacity) || capacity <= 0) {
-    throw new Error("A valid vehicle battery capacity is required.");
+  if (
+    !Number.isFinite(batteryCapacity) ||
+    !Number.isFinite(vehicleMaxPower) ||
+    !Number.isFinite(initial) ||
+    !Number.isFinite(target)
+  ) {
+    throw new Error("Invalid charging information.");
   }
-  if (!Number.isFinite(vehicleRate) || vehicleRate <= 0) {
-    throw new Error("A valid vehicle charging rate is required.");
+
+  if (batteryCapacity <= 0) {
+    throw new Error("Battery capacity must be greater than zero.");
   }
-  if (!Number.isFinite(initial) || !Number.isFinite(target) || initial < 0 || target > 100 || target <= initial) {
+
+  if (vehicleMaxPower <= 0) {
+    throw new Error("Charging rate must be greater than zero.");
+  }
+
+  if (initial < 0 || initial >= 100) {
+    throw new Error("Initial SOC must be between 0% and 99%.");
+  }
+
+  if (target <= initial || target > 100) {
     throw new Error("Target SOC must be greater than initial SOC and not exceed 100%.");
   }
 
-  const energyRequiredKwh = capacity * ((target - initial) / 100);
-  const effectiveChargingRateKw = Math.min(vehicleRate, STATION_CHARGER_POWER_KW);
-  const rawDurationMinutes = (energyRequiredKwh / effectiveChargingRateKw) * 60;
-  const durationMinutes = Math.max(15, ceilToQuarterHour(rawDurationMinutes));
+  /* Battery energy that must actually be added */
+  const energyRequiredKwh =
+    batteryCapacity * ((target - initial) / 100);
+
+  /*
+   * Station charger = 450 kW maximum.
+   * Actual charging power is therefore limited by
+   * whichever is smaller:
+   *
+   * vehicle charging capability
+   * or
+   * charger capability
+   */
+  const effectiveChargingRateKw =
+    Math.min(vehicleMaxPower, 450);
+
+  /*
+   * Charging efficiency used by the project.
+   * Battery must receive energyRequiredKwh, therefore
+   * the charger must supply slightly more energy.
+   */
+  const chargingEfficiency = 0.925;
+
+  const chargerEnergyKwh =
+    energyRequiredKwh / chargingEfficiency;
+
+  /*
+   * Exact physical charging duration:
+   *
+   * time (h) = energy (kWh) / power (kW)
+   *
+   * Convert hours → minutes.
+   */
+  const exactDurationMinutes =
+    (chargerEnergyKwh / effectiveChargingRateKw) * 60;
+
+  /*
+   * Reserve complete minutes.
+   *
+   * IMPORTANT:
+   * Do NOT round this to 15-minute intervals.
+   */
+  const durationMinutes =
+    Math.max(1, Math.ceil(exactDurationMinutes));
 
   return {
     energyRequiredKwh,
+    chargerEnergyKwh,
     effectiveChargingRateKw,
-    rawDurationMinutes,
+    exactDurationMinutes,
     durationMinutes,
   };
 }

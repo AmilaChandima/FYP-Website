@@ -8,7 +8,7 @@ export default function Chargers() {
   const offline = chargers.filter((item) => item.status === "offline").length;
 
   return (
-    <section className="page-width inner-page">
+    <section className="customer-page page-width inner-page chargers-page">
       <div className="page-title"><p className="eyebrow">LIVE AVAILABILITY</p><h1>Charging Points</h1><p>Check the current status of every charger before arriving.</p></div>
       <div className="availability-summary"><span><strong>{available}</strong> Available</span><span><strong>{charging}</strong> Charging</span><span><strong>{offline}</strong> Out of service</span></div>
       <div className="charger-detail-grid">{chargers.map((charger) => <ChargerCard key={charger.id} charger={charger} detailed />)}</div>

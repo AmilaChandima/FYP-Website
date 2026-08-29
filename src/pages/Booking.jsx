@@ -332,7 +332,7 @@ export default function Booking() {
                   variant="flexible"
                   rangeStartSlotIndex={selectedFlexibleStartSlot}
                   rangeEndSlotIndex={selectedFlexibleEndSlot}
-                  rangeLabel="Your acceptable arrival range"
+                  rangeLabel="Arrival range"
                 />
 
                 <div className="fixed-booking-chart-note">

@@ -105,13 +105,13 @@ export default function PriceChart({
                 x={rangeStartTime}
                 stroke="#ffffff"
                 strokeDasharray="4 4"
-                label={{ value: "Earliest", position: "insideTopLeft", fill: "#dce8f1", fontSize: 10 }}
+                //label={{ value: "Earliest", position: "insideTopLeft", fill: "#dce8f1", fontSize: 10 }}
               />
               <ReferenceLine
                 x={rangeEndTime}
                 stroke="#ffffff"
                 strokeDasharray="4 4"
-                label={{ value: "Latest", position: "insideTopRight", fill: "#dce8f1", fontSize: 10 }}
+                //label={{ value: "Latest", position: "insideTopRight", fill: "#dce8f1", fontSize: 10 }}
               />
             </>
           )}

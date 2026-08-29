@@ -2,7 +2,7 @@ import { BadgeCheck, Clock3, Leaf, MapPin, ShieldCheck, Zap } from "lucide-react
 
 export default function About() {
   return (
-    <section className="page-width inner-page">
+    <section className="customer-page page-width inner-page about-page">
       <div className="page-title">
         <p className="eyebrow">ABOUT THE STATION</p>
         <h1>A Smarter Charging Experience</h1>
