@@ -2816,3 +2816,39 @@ body {
 .booking-option-selector button:nth-child(2):hover b {
   color: var(--green-soft);
 }
+
+/* =========================================================
+   ADMIN BOOKING SIDEBAR — NEW BOOKING INDICATOR
+   ========================================================= */
+.admin-shell .admin-nav-link {
+  position: relative;
+}
+
+.admin-shell .admin-booking-new-badge {
+  margin-left: auto;
+  min-width: 38px;
+  height: 20px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #ffad45;
+  color: #201406;
+  box-shadow: 0 0 0 1px rgba(255, 173, 69, 0.25), 0 0 16px rgba(255, 173, 69, 0.18);
+  font-size: 10px !important;
+  line-height: 1 !important;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.admin-shell.admin-sidebar-collapsed .admin-booking-new-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  margin-left: 0;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 9px !important;
+}

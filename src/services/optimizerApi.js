@@ -16,12 +16,17 @@ export async function startOptimizerRun(files) {
   form.append("pv", files.pv);
   form.append("primary_elastic", files.primaryElastic);
   form.append("grid_price", files.gridPrice);
-  form.append("bess_profile", files.bessProfile);
   return readJson(await fetch("/api/optimizer/run", { method: "POST", body: form }));
 }
 
 export async function getOptimizerJob(jobId) {
   return readJson(await fetch(`/api/optimizer/jobs/${jobId}`));
+}
+
+export async function cancelOptimizerRun(jobId) {
+  return readJson(await fetch(`/api/optimizer/jobs/${encodeURIComponent(jobId)}/cancel`, {
+    method: "POST",
+  }));
 }
 
 export async function getLatestOptimizerResult() {

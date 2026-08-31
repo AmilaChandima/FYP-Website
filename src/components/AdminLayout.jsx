@@ -13,9 +13,10 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAdminAuth } from "../context/AdminAuthContext";
+import { getBookings, subscribeToBookings } from "../services/bookings";
 
 const links = [
   { to: "/admin/dashboard", label: "Overview", icon: Gauge },
@@ -27,17 +28,48 @@ const links = [
   { to: "/admin/revenue", label: "Income & Revenue", icon: CircleDollarSign },
 ];
 
+const ADMIN_BOOKINGS_SEEN_KEY = "solarcharge_admin_bookings_seen_at_v1";
+
+function bookingCreatedAtMs(booking) {
+  const value = Date.parse(String(booking?.createdAt || ""));
+  return Number.isFinite(value) ? value : 0;
+}
+
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [now, setNow] = useState(new Date());
+  const [bookingVersion, setBookingVersion] = useState(0);
+  const [lastSeenBookingAt, setLastSeenBookingAt] = useState(() => localStorage.getItem(ADMIN_BOOKINGS_SEEN_KEY) || "");
   const { logout } = useAdminAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
     return () => window.clearInterval(timer);
   }, []);
+
+  useEffect(() => subscribeToBookings(() => setBookingVersion((value) => value + 1)), []);
+
+  const adminBookings = useMemo(() => getBookings(), [bookingVersion]);
+  const lastSeenBookingMs = Date.parse(lastSeenBookingAt || "") || 0;
+  const newBookings = useMemo(
+    () => adminBookings.filter((booking) => bookingCreatedAtMs(booking) > lastSeenBookingMs),
+    [adminBookings, lastSeenBookingMs]
+  );
+  const newFixedBookings = newBookings.filter((booking) => booking.bookingType === "fixed").length;
+  const newFlexibleBookings = newBookings.filter((booking) => booking.bookingType === "flexible").length;
+  const newBookingCount = newFixedBookings + newFlexibleBookings;
+
+  useEffect(() => {
+    if (!location.pathname.startsWith("/admin/bookings") || adminBookings.length === 0) return;
+    const latestBookingMs = Math.max(0, ...adminBookings.map(bookingCreatedAtMs));
+    if (latestBookingMs <= lastSeenBookingMs) return;
+    const seenAt = new Date(latestBookingMs).toISOString();
+    localStorage.setItem(ADMIN_BOOKINGS_SEEN_KEY, seenAt);
+    setLastSeenBookingAt(seenAt);
+  }, [location.pathname, adminBookings, lastSeenBookingMs]);
 
   function signOut() {
     logout();
@@ -59,11 +91,18 @@ export default function AdminLayout() {
               key={to}
               to={to}
               onClick={() => setMobileOpen(false)}
-              title={collapsed ? label : undefined}
+              title={to === "/admin/bookings" && newBookingCount > 0
+                ? `${label} — ${newBookingCount} new (${newFixedBookings} fixed/primary, ${newFlexibleBookings} flexible)`
+                : collapsed ? label : undefined}
               className={({ isActive }) => isActive ? "admin-nav-link active" : "admin-nav-link"}
             >
               <Icon size={20} />
               {!collapsed && <span>{label}</span>}
+              {to === "/admin/bookings" && newBookingCount > 0 && (
+                <span className="admin-booking-new-badge" aria-label={`${newBookingCount} new bookings`}>
+                  {collapsed ? Math.min(newBookingCount, 99) : `${Math.min(newBookingCount, 99)} new`}
+                </span>
+              )}
             </NavLink>
           ))}
         </nav>

@@ -89,10 +89,20 @@ export default function AdminBookings() {
     }
   }
 
+  const basePrimaryUsers = Number(baseInfo?.primaryUsers || 0);
+  const baseElasticUsers = Number(baseInfo?.elasticUsers || 0);
+  const tomorrowKey = getTomorrowDateKey();
+  const websiteFixedReservations = bookings.filter(
+    (item) => item.date === tomorrowKey && item.bookingType === "fixed" && item.status === "reserved"
+  ).length;
+  const websiteFlexiblePending = bookings.filter(
+    (item) => item.date === tomorrowKey && item.bookingType === "flexible" && item.status === "pending"
+  ).length;
+
   const counts = {
-    fixed: bookings.filter((item) => item.bookingType === "fixed" && item.status === "reserved").length,
-    pending: bookings.filter((item) => item.status === "pending").length,
-    scheduled: bookings.filter((item) => item.status === "scheduled").length,
+    fixed: basePrimaryUsers + websiteFixedReservations,
+    pending: baseElasticUsers + websiteFlexiblePending,
+    scheduled: bookings.filter((item) => item.bookingType === "flexible" && item.status === "scheduled").length,
     completed: bookings.filter((item) => item.status === "completed").length,
   };
 
@@ -110,8 +120,8 @@ export default function AdminBookings() {
       </div>
 
       <section className="admin-stat-grid compact">
-        <article className="admin-stat-card bookings"><div><span>Fixed reservations</span><strong>{counts.fixed}</strong><small>Immediately confirmed</small></div><BookOpenCheck /></article>
-        <article className="admin-stat-card warning"><div><span>Flexible pending</span><strong>{counts.pending}</strong><small>Awaiting optimization</small></div><Sparkles /></article>
+        <article className="admin-stat-card bookings"><div><span>Fixed reservations</span><strong>{counts.fixed}</strong></div><BookOpenCheck /></article>
+        <article className="admin-stat-card warning"><div><span>Flexible pending</span><strong>{counts.pending}</strong></div><Sparkles /></article>
         <article className="admin-stat-card chargers"><div><span>Flexible scheduled</span><strong>{counts.scheduled}</strong><small>Customers notified</small></div><BellRing /></article>
         <article className="admin-stat-card customers"><div><span>Completed</span><strong>{counts.completed}</strong><small>Historical sessions</small></div><CheckCircle2 /></article>
       </section>
@@ -120,25 +130,19 @@ export default function AdminBookings() {
         <div className="admin-panel-heading">
           <div>
             <h2>Build Primary_Elastic_EV_Users.xlsx</h2>
-            <p>For the project demonstration, the original optimizer dataset stays fixed. This tool rebuilds a fresh copy and appends only active website bookings for tomorrow.</p>
+           
           </div>
           <FileSpreadsheet />
         </div>
         <div className="optimizer-builder-flow">
-          <article><small>Fixed original dataset</small><strong>{baseInfo ? `${baseInfo.baseRows} users` : "Base workbook"}</strong><span>Never modified</span></article>
-          <b>+</b>
-          <article><small>Website bookings tomorrow</small><strong>{optimizerBookings.length}</strong><span>{optimizerFixed} primary · {optimizerFlexible} elastic</span></article>
-          <b>=</b>
+
           <article><small>Next optimizer input</small><strong>{baseInfo ? baseInfo.baseRows + optimizerBookings.length : "—"} users</strong><span>Fresh generated workbook</span></article>
         </div>
-        <div className="optimizer-builder-note">
-          <Sparkles size={18} />
-          <span>Flexible website bookings receive unique <b>WEB-...</b> controller IDs. Those same IDs return in <code>elastic_user_notifications.csv</code>, allowing the notification to be delivered to the correct customer account.</span>
-        </div>
+
         {builderError && <div className="optimizer-error-panel compact-error"><span>{builderError}</span></div>}
         {builderResult && (
           <div className="admin-action-message success-message">
-            <CheckCircle2 /> Generated successfully: {builderResult.baseRows} fixed rows + {builderResult.appendedBookings} website bookings = {builderResult.totalRows} total rows. The file has been downloaded.
+            <CheckCircle2 /> Generated successfully: {builderResult.baseRows} original rows + {builderResult.appendedBookings} website bookings = {builderResult.totalRows} total rows. The file has been downloaded.
           </div>
         )}
         <div className="admin-run-actions optimizer-builder-actions">

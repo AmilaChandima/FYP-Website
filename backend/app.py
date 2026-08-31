@@ -77,6 +77,7 @@ app.add_middleware(
 JOBS: dict[str, dict[str, Any]] = {}
 JOBS_LOCK = threading.Lock()
 RUN_LOCK = threading.Lock()
+ACTIVE_PROCESSES: dict[str, subprocess.Popen] = {}
 
 
 def now_colombo() -> datetime:
@@ -692,33 +693,109 @@ def _clear_results() -> None:
     (RESULTS_DIR / "graphs").mkdir(parents=True, exist_ok=True)
 
 
+def _job_is_cancelled(job_id: str) -> bool:
+    with JOBS_LOCK:
+        return JOBS.get(job_id, {}).get("status") == "cancelled"
+
+
+def _terminate_optimizer_process(process: subprocess.Popen) -> None:
+    if process.poll() is not None:
+        return
+
+    # The project is normally run on Windows. taskkill /T also stops any child
+    # processes started by the optimizer. The fallback keeps this backend
+    # portable for Linux/macOS development.
+    if os.name == "nt":
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+            return
+        except Exception:
+            pass
+
+    try:
+        process.terminate()
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+    except Exception:
+        try:
+            process.kill()
+        except Exception:
+            pass
+
+
 def _run_optimizer_job(job_id: str, target_date: str, run_dir: Path) -> None:
     with RUN_LOCK:
+        process: subprocess.Popen | None = None
         try:
+            if _job_is_cancelled(job_id):
+                return
+
             _set_job(job_id, status="running", phase="Preparing optimizer workspace", progress=10)
             _clear_results()
 
+            if _job_is_cancelled(job_id):
+                return
+
             _set_job(job_id, phase="Running MILP optimization with Gurobi", progress=25)
-            process = subprocess.run(
+            process = subprocess.Popen(
                 [sys.executable, str(CODE_FILE)],
                 cwd=str(OPTIMIZER_DIR),
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                timeout=33000,
             )
-            (run_dir / "optimizer_stdout.log").write_text(process.stdout or "", encoding="utf-8")
-            (run_dir / "optimizer_stderr.log").write_text(process.stderr or "", encoding="utf-8")
+
+            with JOBS_LOCK:
+                ACTIVE_PROCESSES[job_id] = process
+                already_cancelled = JOBS.get(job_id, {}).get("status") == "cancelled"
+
+            if already_cancelled:
+                _terminate_optimizer_process(process)
+
+            try:
+                stdout, stderr = process.communicate(timeout=33000)
+            except subprocess.TimeoutExpired:
+                _terminate_optimizer_process(process)
+                stdout, stderr = process.communicate()
+                (run_dir / "optimizer_stdout.log").write_text(stdout or "", encoding="utf-8")
+                (run_dir / "optimizer_stderr.log").write_text(stderr or "", encoding="utf-8")
+                if _job_is_cancelled(job_id):
+                    return
+                raise
+            finally:
+                with JOBS_LOCK:
+                    ACTIVE_PROCESSES.pop(job_id, None)
+
+            (run_dir / "optimizer_stdout.log").write_text(stdout or "", encoding="utf-8")
+            (run_dir / "optimizer_stderr.log").write_text(stderr or "", encoding="utf-8")
+
+            if _job_is_cancelled(job_id):
+                return
 
             if process.returncode != 0:
-                error_tail = "\n".join((process.stderr or process.stdout or "Optimizer failed").splitlines()[-30:])
+                error_tail = "\n".join((stderr or stdout or "Optimizer failed").splitlines()[-30:])
                 raise RuntimeError(error_tail)
 
             _set_job(job_id, phase="Reading tomorrow forecast results", progress=85)
+            if _job_is_cancelled(job_id):
+                return
+
             run_results = run_dir / "results"
             shutil.copytree(RESULTS_DIR, run_results, dirs_exist_ok=True)
             parsed = parse_optimizer_results(run_results, job_id, target_date)
+
+            if _job_is_cancelled(job_id):
+                return
+
             (run_dir / "parsed_results.json").write_text(json.dumps(parsed, indent=2), encoding="utf-8")
             try:
                 upsert_optimization_result(parsed)
@@ -736,14 +813,27 @@ def _run_optimizer_job(job_id: str, target_date: str, run_dir: Path) -> None:
             except Exception as db_exc:
                 (run_dir / "database_warning.log").write_text(str(db_exc), encoding="utf-8")
 
+            if _job_is_cancelled(job_id):
+                try:
+                    (run_dir / "parsed_results.json").unlink(missing_ok=True)
+                except Exception:
+                    pass
+                return
+
             _set_job(job_id, status="success", phase="Completed", progress=100, result=parsed, error=None)
         except subprocess.TimeoutExpired:
-            message = "Optimizer exceeded the configured execution timeout (33,000 seconds)."
-            _set_job(job_id, status="error", phase="Failed", progress=100, error=message)
+            if not _job_is_cancelled(job_id):
+                message = "Optimizer exceeded the configured execution timeout (33,000 seconds)."
+                _set_job(job_id, status="error", phase="Failed", progress=100, error=message)
         except Exception as exc:
+            if _job_is_cancelled(job_id):
+                return
             message = str(exc).strip() or exc.__class__.__name__
             (run_dir / "backend_error.log").write_text(traceback.format_exc(), encoding="utf-8")
             _set_job(job_id, status="error", phase="Failed", progress=100, error=message)
+        finally:
+            with JOBS_LOCK:
+                ACTIVE_PROCESSES.pop(job_id, None)
 
 
 @app.post("/api/demo/primary-elastic/generate")
@@ -768,8 +858,13 @@ def primary_elastic_base_info() -> dict[str, Any]:
     if not DEMO_BASE_PRIMARY_ELASTIC.exists():
         raise HTTPException(status_code=404, detail="Fixed base Primary_Elastic_EV_Users workbook is missing.")
     base = pd.read_excel(DEMO_BASE_PRIMARY_ELASTIC)
+    user_types = base.get("User_Type", pd.Series(dtype=str)).astype(str).str.strip().str.lower()
+    primary_users = int((user_types == "primary").sum())
+    elastic_users = int((user_types == "elastic").sum())
     return {
         "baseRows": len(base),
+        "primaryUsers": primary_users,
+        "elasticUsers": elastic_users,
         "fileName": "Primary_Elastic_EV_Users_base.xlsx",
         "note": "The fixed base is never modified. Each generated file is rebuilt from this base plus current website bookings for tomorrow.",
     }
@@ -780,7 +875,6 @@ async def start_optimizer(
     pv: UploadFile = File(...),
     primary_elastic: UploadFile = File(...),
     grid_price: UploadFile = File(...),
-    bess_profile: UploadFile = File(...),
 ) -> dict[str, Any]:
     with JOBS_LOCK:
         if any(job.get("status") in {"queued", "running"} for job in JOBS.values()):
@@ -790,12 +884,10 @@ async def start_optimizer(
         "pv.txt": await pv.read(),
         "Primary_Elastic_EV_Users.xlsx": await primary_elastic.read(),
         "grid_price_input_used.csv": await grid_price.read(),
-        "BESS_Profile_5300.txt": await bess_profile.read(),
     }
 
     try:
         _read_text_profile(payloads["pv.txt"], "pv.txt")
-        _read_text_profile(payloads["BESS_Profile_5300.txt"], "BESS_Profile_5300.txt")
         _validate_primary_elastic(payloads["Primary_Elastic_EV_Users.xlsx"])
         _validate_grid_price(payloads["grid_price_input_used.csv"])
     except ValueError as exc:
@@ -854,6 +946,48 @@ def get_job(job_id: str) -> dict[str, Any]:
     if parsed:
         return {"jobId": job_id, "status": "success", "progress": 100, "phase": "Completed on another group laptop", "result": parsed, "error": None, "resultFilesLocal": False}
     raise HTTPException(status_code=404, detail="Optimizer job not found locally or in MongoDB.")
+
+
+@app.post("/api/optimizer/jobs/{job_id}/cancel")
+def cancel_optimizer_job(job_id: str) -> dict[str, Any]:
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+        if not job:
+            raise HTTPException(
+                status_code=404,
+                detail="This optimizer job is not running on this backend.",
+            )
+
+        status = job.get("status")
+        if status == "cancelled":
+            return dict(job)
+        if status not in {"queued", "running"}:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Only a queued or running optimization can be cancelled. Current status: {status}.",
+            )
+
+        job.update({
+            "status": "cancelled",
+            "phase": "Cancelled by administrator",
+            "progress": 100,
+            "error": None,
+            "cancelledAt": now_colombo().isoformat(),
+        })
+        process = ACTIVE_PROCESSES.get(job_id)
+        response = dict(job)
+
+    # Do not hold JOBS_LOCK while terminating the child process.
+    if process is not None:
+        _terminate_optimizer_process(process)
+
+    # A cancelled run must never be restored later as a completed run.
+    try:
+        (RUNS_DIR / job_id / "parsed_results.json").unlink(missing_ok=True)
+    except Exception:
+        pass
+
+    return response
 
 
 @app.get("/api/optimizer/latest")
