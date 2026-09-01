@@ -79,11 +79,13 @@ export default function AdminRevenue() {
       <section className="admin-panel">
         <div className="admin-panel-heading"><div><h2>Daily Income Records</h2><p>Stored revenue totals available to the station owner.</p></div></div>
         <div className="admin-table-wrap">
-          <table className="admin-table"><thead><tr><th>Date</th><th>Daily income</th><th>Difference from average</th><th>Performance</th></tr></thead><tbody>
-            {[...dailyData].reverse().map((item) => {
-              const difference = item.amount - average;
-              return <tr key={item.date}><td><strong>{new Date(`${item.date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}</strong></td><td>{formatCurrency(item.amount)}</td><td className={difference >= 0 ? "positive-number" : "negative-number"}>{difference >= 0 ? "+" : ""}{formatCurrency(difference)}</td><td><span className={`admin-status-pill ${difference >= 0 ? "completed" : "cancelled"}`}>{difference >= 0 ? "Above average" : "Below average"}</span></td></tr>;
-            })}
+          <table className="admin-table"><thead><tr><th>Date</th><th>Daily income</th></tr></thead><tbody>
+            {[...dailyData].reverse().map((item) => (
+              <tr key={item.date}>
+                <td><strong>{new Date(`${item.date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}</strong></td>
+                <td>{formatCurrency(item.amount)}</td>
+              </tr>
+            ))}
           </tbody></table>
         </div>
       </section>

@@ -626,6 +626,57 @@ def parse_optimizer_results(results_dir: Path, job_id: str, target_date: str) ->
         notification_df = pd.read_csv(notification_path).replace([np.inf, -np.inf], np.nan).fillna("")
         elastic_notifications = notification_df.to_dict(orient="records")
 
+    # Exact-minute charger occupancy is produced by the optimizer as
+    # charger_minute_results.csv. The file contains rows only for occupied
+    # charger/minute combinations, so missing charger rows at a selected minute
+    # mean that those chargers are available. Keep a compact minute-keyed map in
+    # the parsed result so both the Key Results and Detailed Results pages can
+    # inspect charger status without loading the full CSV in the browser.
+    charger_minute_path = results_dir / "charger_minute_results.csv"
+    charger_excel_path = results_dir / "whole_vehicle_shift_milp_results.xlsx"
+    charger_minute_source = "charger_minute_results.csv"
+    charger_occupancy: dict[str, list[int]] = {}
+    charger_occupancy_available = False
+
+    charger_minute_df: pd.DataFrame | None = None
+    if charger_minute_path.exists():
+        try:
+            charger_minute_df = pd.read_csv(charger_minute_path)
+            charger_occupancy_available = True
+        except pd.errors.EmptyDataError:
+            charger_minute_df = pd.DataFrame()
+            charger_occupancy_available = True
+    elif charger_excel_path.exists():
+        try:
+            charger_minute_df = pd.read_excel(charger_excel_path, sheet_name="Charger_Minute")
+            charger_minute_source = "whole_vehicle_shift_milp_results.xlsx / Charger_Minute"
+            charger_occupancy_available = True
+        except (ValueError, ImportError):
+            charger_minute_df = None
+
+    if charger_minute_df is not None and not charger_minute_df.empty:
+        required_charger_columns = {"minute", "charger_pile_id", "active_user_count"}
+        if required_charger_columns.issubset(set(map(str, charger_minute_df.columns))):
+            safe_charger_df = charger_minute_df.replace([np.inf, -np.inf], np.nan).fillna(0)
+            for _, row in safe_charger_df.iterrows():
+                try:
+                    minute = int(float(row.get("minute", -1)))
+                    charger_id = int(float(row.get("charger_pile_id", 0)))
+                    active_count = int(float(row.get("active_user_count", 0)))
+                except (TypeError, ValueError):
+                    continue
+
+                if not (0 <= minute < 1440 and 1 <= charger_id <= 10 and active_count > 0):
+                    continue
+
+                minute_key = str(minute)
+                charger_occupancy.setdefault(minute_key, []).append(charger_id)
+
+            for minute_key in charger_occupancy:
+                charger_occupancy[minute_key] = sorted(set(charger_occupancy[minute_key]))
+        else:
+            charger_occupancy_available = False
+
     primary_revenue = _num(summary, "Primary Revenue After")
     secondary_revenue = _num(summary, "Secondary Revenue After")
     export_revenue = _num(summary, "Total Grid Export Revenue After")
@@ -663,6 +714,57 @@ def parse_optimizer_results(results_dir: Path, job_id: str, target_date: str) ->
         "slotProfit": _records(slots, ["time", "slot_profit_LKR", "elastic_revenue_LKR", "dynamic_secondary_revenue_LKR"]),
     }
 
+    # Compact after-optimization operational details for the selected 15-minute slot.
+    # All power values in slot_summary_results.csv are converted to slot energy using
+    # E = P * 0.25 h before they are sent to the web interface.
+    slot_operation: list[dict[str, Any]] = []
+    required_slot_columns = {
+        "slot",
+        "time",
+        "pv_generation_kW",
+        "total_ev_load_after_kW",
+        "grid_import_after_kW",
+        "grid_export_total_kW",
+        "export_mode",
+        "bess_charge_kW",
+        "bess_discharge_total_kW",
+    }
+    slot_operation_available = required_slot_columns.issubset(set(map(str, slots.columns)))
+
+    if slot_operation_available:
+        for slot_index, (_, row) in enumerate(slots.iterrows()):
+            def slot_num(column: str) -> float:
+                value = row.get(column, 0.0)
+                if pd.isna(value):
+                    return 0.0
+                try:
+                    return float(value)
+                except (TypeError, ValueError):
+                    return 0.0
+
+            raw_slot = row.get("slot", slot_index)
+            try:
+                slot_number: int | float = int(float(raw_slot))
+            except (TypeError, ValueError):
+                slot_number = slot_index
+
+            export_mode = row.get("export_mode", "No export")
+            if pd.isna(export_mode) or not str(export_mode).strip():
+                export_mode = "No export"
+
+            slot_operation.append({
+                "slotIndex": slot_index,
+                "slotNumber": slot_number,
+                "time": str(row.get("time", "")),
+                "pvGenerationEnergyKWh": slot_num("pv_generation_kW") * 0.25,
+                "evDemandEnergyKWh": slot_num("total_ev_load_after_kW") * 0.25,
+                "gridImportEnergyKWh": slot_num("grid_import_after_kW") * 0.25,
+                "gridExportEnergyKWh": slot_num("grid_export_total_kW") * 0.25,
+                "exportMode": str(export_mode),
+                "bessChargeEnergyKWh": slot_num("bess_charge_kW") * 0.25,
+                "bessDischargeEnergyKWh": slot_num("bess_discharge_total_kW") * 0.25,
+            })
+
     return {
         "jobId": job_id,
         "targetDate": target_date,
@@ -671,6 +773,11 @@ def parse_optimizer_results(results_dir: Path, job_id: str, target_date: str) ->
         "priceSignal": price_signal,
         "metrics": key_metrics,
         "charts": charts,
+        "slotOperation": slot_operation,
+        "slotOperationAvailable": slot_operation_available,
+        "chargerOccupancy": charger_occupancy,
+        "chargerOccupancyAvailable": charger_occupancy_available,
+        "chargerOccupancySource": charger_minute_source,
         "elasticNotifications": elastic_notifications,
         "websiteElasticNotificationCount": sum(1 for item in elastic_notifications if str(item.get("user_id", "")).startswith("WEB-")),
         "resultFiles": [
@@ -681,6 +788,35 @@ def parse_optimizer_results(results_dir: Path, job_id: str, target_date: str) ->
             "optimized_bess_profile_pu.txt",
         ],
     }
+
+
+def _upgrade_local_result_with_charger_occupancy(parsed: dict[str, Any], job_id: str) -> dict[str, Any]:
+    """Backfill selected-time operational details for older local optimizer runs."""
+    if "chargerOccupancy" in parsed and "slotOperation" in parsed:
+        return parsed
+
+    results_dir = RUNS_DIR / job_id / "results"
+    if not results_dir.exists():
+        return parsed
+
+    try:
+        upgraded = parse_optimizer_results(
+            results_dir,
+            job_id,
+            str(parsed.get("targetDate") or tomorrow_key()),
+        )
+        if parsed.get("generatedAt"):
+            upgraded["generatedAt"] = parsed["generatedAt"]
+
+        parsed_file = RUNS_DIR / job_id / "parsed_results.json"
+        parsed_file.write_text(json.dumps(upgraded, indent=2), encoding="utf-8")
+        try:
+            upsert_optimization_result(upgraded)
+        except Exception:
+            pass
+        return upgraded
+    except Exception:
+        return parsed
 
 
 def _clear_results() -> None:
@@ -938,6 +1074,7 @@ def get_job(job_id: str) -> dict[str, Any]:
     parsed_file = RUNS_DIR / job_id / "parsed_results.json"
     if parsed_file.exists():
         parsed = json.loads(parsed_file.read_text(encoding="utf-8"))
+        parsed = _upgrade_local_result_with_charger_occupancy(parsed, job_id)
         return {"jobId": job_id, "status": "success", "progress": 100, "phase": "Completed", "result": parsed, "error": None, "resultFilesLocal": True}
     try:
         parsed = db_get_optimization_result(job_id)
@@ -995,6 +1132,9 @@ def latest_result() -> dict[str, Any]:
     try:
         latest = db_latest_optimization_result()
         if latest:
+            job_id = str(latest.get("jobId") or "")
+            if job_id:
+                latest = _upgrade_local_result_with_charger_occupancy(latest, job_id)
             return latest
     except Exception:
         pass

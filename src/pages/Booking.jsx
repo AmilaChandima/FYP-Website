@@ -56,12 +56,6 @@ function calculateForUser(user, form) {
   }
 }
 
-function buildFlexiblePriceSchedule(fixedPrices, flexibleReferencePrice) {
-  const fixedAverage = fixedPrices.reduce((sum, value) => sum + Number(value), 0) / fixedPrices.length;
-  const discount = Math.max(5, fixedAverage - Number(flexibleReferencePrice));
-  return fixedPrices.map((price) => Number((Number(price) - discount).toFixed(2)));
-}
-
 function bookingStatusLabel(booking) {
   if (booking.status === "pending") return "Waiting for scheduling";
   if (booking.status === "scheduled") return "Scheduled by station";
@@ -95,10 +89,7 @@ export default function Booking() {
   );
 
   const fixedBookingPriceSchedule = fixedArrivalTomorrowPrices;
-  const flexibleBookingPriceSchedule = useMemo(
-    () => buildFlexiblePriceSchedule(fixedBookingPriceSchedule, flexibleBookingPrice),
-    [fixedBookingPriceSchedule, flexibleBookingPrice]
-  );
+  const flexibleBookingPriceSchedule = fixedBookingPriceSchedule;
 
   const selectedFixedArrivalSlot = Math.min(
     95,
@@ -136,12 +127,12 @@ export default function Booking() {
     setError("");
   }
 
-  async function submitFixed(event) {
+  function submitFixed(event) {
     event.preventDefault();
     setError("");
     setMessage("");
     try {
-      const booking = await createFixedBooking({
+      const booking = createFixedBooking({
         user,
         ...fixedForm,
         price: selectedFixedArrivalPrice,
@@ -153,12 +144,12 @@ export default function Booking() {
     }
   }
 
-  async function submitFlexible(event) {
+  function submitFlexible(event) {
     event.preventDefault();
     setError("");
     setMessage("");
     try {
-      await createFlexibleBooking({
+      createFlexibleBooking({
         user,
         ...flexibleForm,
         price: flexibleBookingPrice,
@@ -167,19 +158,6 @@ export default function Booking() {
       setVersion((value) => value + 1);
     } catch (err) {
       setError(err.message || "The flexible booking request could not be submitted.");
-    }
-  }
-
-
-  async function cancelExistingBooking(bookingId) {
-    setError("");
-    setMessage("");
-    try {
-      await cancelBooking(bookingId, user.id);
-      setMessage("The booking was cancelled.");
-      setVersion((value) => value + 1);
-    } catch (err) {
-      setError(err.message || "Unable to cancel the booking in MongoDB.");
     }
   }
 
@@ -222,15 +200,36 @@ export default function Booking() {
       </div>
 
       <div className="booking-option-selector">
-        <button className={bookingType === "fixed" ? "active fixed" : ""} onClick={() => selectType("fixed")}>
-          <CalendarClock />
-          <span><small>OPTION 1</small><strong>Fixed-Arrival Booking</strong><em>Choose your exact arrival time</em></span>
-          <b>Rs. {fixedPriceMinimum.toFixed(0)}–{fixedPriceMaximum.toFixed(0)}/kWh</b>
+        <button
+          type="button"
+          className={bookingType === "fixed" ? "active fixed" : "fixed"}
+          onClick={() => selectType("fixed")}
+        >
+          <div className="booking-option-topline">
+            <span>OPTION 1</span>
+            <CalendarClock />
+          </div>
+          <div className="booking-option-price-badge fixed-badge">STANDARD PRICE</div>
+          <h3>Fixed-Arrival Booking</h3>
+          <p className="booking-option-rate">
+            Rs. {fixedPriceMinimum.toFixed(0)}–{fixedPriceMaximum.toFixed(0)} <small>/kWh</small>
+          </p>
         </button>
-        <button className={bookingType === "flexible" ? "active flexible" : ""} onClick={() => selectType("flexible")}>
-          <Sparkles />
-          <span><small>OPTION 2 · LOWER PRICE</small><strong>Flexible Smart Booking</strong><em>Give a time range and let the station schedule you</em></span>
-          <b>Rs. {flexibleScheduleMinimum.toFixed(0)}–{flexibleScheduleMaximum.toFixed(0)}/kWh</b>
+
+        <button
+          type="button"
+          className={bookingType === "flexible" ? "active flexible" : "flexible"}
+          onClick={() => selectType("flexible")}
+        >
+          <div className="booking-option-topline">
+            <span>OPTION 2</span>
+            <Sparkles />
+          </div>
+          <div className="booking-option-price-badge flexible-badge">LOWER THAN FIXED-ARRIVAL PRICES</div>
+          <h3>Flexible Smart Booking</h3>
+          <p className="booking-option-rate">
+            Rs. {flexibleScheduleMinimum.toFixed(0)}–{flexibleScheduleMaximum.toFixed(0)} <small>/kWh</small>
+          </p>
         </button>
       </div>
 
@@ -315,7 +314,7 @@ export default function Booking() {
                 <div className="fixed-booking-price-chart-heading">
                   <div>
                     <p>TOMORROW’S FLEXIBLE BOOKING PRICE</p>
-                    <h3>Lower 15-Minute Price Schedule</h3>
+                    <h3>15-Minute Booking Price Schedule</h3>
                     <span>Select your acceptable arrival range to highlight it and view the possible price range.</span>
                   </div>
                   <strong>
@@ -332,11 +331,11 @@ export default function Booking() {
                   variant="flexible"
                   rangeStartSlotIndex={selectedFlexibleStartSlot}
                   rangeEndSlotIndex={selectedFlexibleEndSlot}
-                  rangeLabel="Arrival range"
+                  rangeLabel="Your acceptable arrival range"
                 />
 
                 <div className="fixed-booking-chart-note">
-                  Flexible prices remain below the fixed-arrival schedule. The station will select one exact arrival
+                  Flexible booking uses the same tomorrow price signal as fixed-arrival booking. The station will select one exact arrival
                   time inside your highlighted range, and the final price will correspond to that scheduled time.
                 </div>
               </div>
@@ -411,8 +410,9 @@ export default function Booking() {
                   <p>Requested range: {formatTime12(booking.windowStart)}–{formatTime12(booking.windowEnd)}</p>
                 )}
                 <small>{booking.durationMinutes} min · {Number(booking.energyRequiredKwh || 0).toFixed(1)} kWh · Rs. {Number(booking.price).toFixed(2)}/kWh</small>
+                {booking.notification && <div className="booking-notification"><BellRing /> {booking.notification}</div>}
                 {["pending", "scheduled", "reserved"].includes(booking.status) && (
-                  <button className="cancel-booking-button" onClick={() => cancelExistingBooking(booking.id)}><XCircle /> Cancel</button>
+                  <button className="cancel-booking-button" onClick={() => cancelBooking(booking.id, user.id)}><XCircle /> Cancel</button>
                 )}
               </div>
             ))}

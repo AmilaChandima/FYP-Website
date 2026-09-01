@@ -181,6 +181,7 @@ export default function AdminPricing() {
         {fixedMessage && <div className="admin-save-message"><CheckCircle2 size={18} /> {fixedMessage}</div>}
       </section>
 
+{/*
       <section className="admin-panel admin-fixed-booking-prices">
         <div className="admin-panel-heading">
           <div>
@@ -210,7 +211,7 @@ export default function AdminPricing() {
         </div>
         {flexibleMessage && <div className="admin-save-message"><CheckCircle2 size={18} /> {flexibleMessage}</div>}
       </section>
-
+*/}
       <section className="admin-panel admin-price-toolbar">
         <div className="admin-control-group">
           <span>Public schedule day</span>

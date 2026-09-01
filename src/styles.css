@@ -1259,35 +1259,110 @@ button { cursor: pointer; }
 .booking-option-selector {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
-  margin-bottom: 18px;
+  gap: 24px;
+  margin-bottom: 28px;
 }
 .booking-option-selector button {
+  position: relative;
   width: 100%;
-  min-height: 115px;
-  padding: 20px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 16px;
+  min-height: 220px;
+  padding: 28px 30px 25px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   text-align: left;
-  align-items: center;
   color: white;
-  background: linear-gradient(145deg, #0b2032, #071725);
+  background: linear-gradient(145deg, #0c2235, #071723);
   border: 1px solid var(--border);
-  border-radius: 13px;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  isolation: isolate;
 }
-.booking-option-selector button > svg { width: 30px; height: 30px; color: #7591a8; }
-.booking-option-selector button span { display: flex; flex-direction: column; gap: 5px; }
-.booking-option-selector button small { font-size:16px; font-weight: 800; color: #8fa4b6; letter-spacing: .11em; }
-.booking-option-selector button strong { font-size:16px; }
-.booking-option-selector button em { color: var(--muted); font-size:16px; font-style: normal; }
-.booking-option-selector button b { font-size:16px; white-space: nowrap; }
-.booking-option-selector button.active.fixed { border-color: #43a7ff; box-shadow: 0 0 0 1px rgba(67,167,255,.25), 0 15px 36px rgba(0,0,0,.2); }
-.booking-option-selector button.active.fixed > svg,
-.booking-option-selector button.active.fixed b { color: #68b7ff; }
-.booking-option-selector button.active.flexible { border-color: var(--green); box-shadow: 0 0 0 1px rgba(123,234,41,.2), 0 15px 36px rgba(0,0,0,.2); }
-.booking-option-selector button.active.flexible > svg,
-.booking-option-selector button.active.flexible b { color: var(--green-soft); }
+.booking-option-selector button::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  width: 210px;
+  height: 210px;
+  border-radius: 50%;
+  right: -95px;
+  top: -112px;
+  background: rgba(255,255,255,.035);
+}
+.booking-option-selector button.fixed {
+  border-color: #43a7ff;
+  background: linear-gradient(145deg, rgba(17,57,88,.98), rgba(7,28,44,.98));
+  box-shadow:
+    0 0 0 1px rgba(67,167,255,.28),
+    0 14px 36px rgba(67,167,255,.15),
+    0 18px 38px rgba(0,0,0,.28);
+}
+.booking-option-selector button.flexible {
+  border-color: var(--green);
+  background: linear-gradient(145deg, rgba(29,65,40,.98), rgba(8,31,30,.98));
+  box-shadow:
+    0 0 0 1px rgba(123,234,41,.25),
+    0 14px 36px rgba(123,234,41,.14),
+    0 18px 38px rgba(0,0,0,.28);
+}
+.booking-option-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #91a6b8;
+}
+.booking-option-topline span {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: .13em;
+}
+.booking-option-topline svg { width: 30px; height: 30px; }
+.booking-option-selector button.fixed .booking-option-topline svg { color: #43a7ff; }
+.booking-option-selector button.flexible .booking-option-topline svg { color: var(--green); }
+.booking-option-topline,
+.booking-option-price-badge,
+.booking-option-selector button h3,
+.booking-option-rate { position: relative; z-index: 1; }
+.booking-option-price-badge {
+  align-self: flex-start;
+  margin-top: 22px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  font-size: 16px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: .045em;
+}
+.booking-option-price-badge.fixed-badge {
+  color: #8fc8ff;
+  border: 1px solid rgba(67,167,255,.52);
+  background: rgba(67,167,255,.10);
+}
+.booking-option-price-badge.flexible-badge {
+  color: var(--green-soft);
+  border: 1px solid rgba(123,234,41,.42);
+  background: rgba(123,234,41,.10);
+}
+.booking-option-selector button h3 {
+  margin: 22px 0 7px;
+  font-size: 27px;
+  line-height: 1.2;
+  color: #f5f8fb;
+}
+.booking-option-rate {
+  margin: 4px 0 0;
+  font-size: 24px;
+  line-height: 1.25;
+  font-weight: 800;
+}
+.booking-option-selector button.fixed .booking-option-rate { color: #77bcff; }
+.booking-option-selector button.flexible .booking-option-rate { color: var(--green-soft); }
+.booking-option-rate small {
+  font-size: 16px;
+  font-weight: 500;
+  color: #b6c5d2;
+}
 .new-booking-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(330px, .7fr); gap: 18px; }
 .booking-form-panel { padding: 28px; }
 .booking-form-heading { display: flex; gap: 15px; align-items: flex-start; padding-bottom: 23px; border-bottom: 1px solid var(--border); }
@@ -1418,8 +1493,6 @@ button { cursor: pointer; }
   .booking-price-heading { flex-direction: column; }
   .booking-requirement-note { white-space: normal; }
   .booking-option-selector { grid-template-columns: 1fr; }
-  .booking-option-selector button { grid-template-columns: auto 1fr; }
-  .booking-option-selector button b { grid-column: 2; }
   .booking-input-grid,
   .admin-booking-price-inputs { grid-template-columns: 1fr; }
   .calculation-summary { grid-template-columns: 1fr; }
@@ -1762,11 +1835,8 @@ body { font-size:16px; line-height: 1.58; }
 .site-shell .demo-security-note { font-size:16px; line-height: 1.65; margin-top: 10px; }
 
 /* Booking page */
-.site-shell .booking-option-selector { gap: 14px; margin-bottom: 28px; }
-.site-shell .booking-option-selector button { min-height: 96px; padding: 17px 19px; }
-.site-shell .booking-option-selector button small { font-size:16px; }
-.site-shell .booking-option-selector button strong { font-size:16px; }
-.site-shell .booking-option-selector button em { font-size:16px; line-height: 1.55; }
+.site-shell .booking-option-selector { gap: 24px; margin-bottom: 28px; }
+.site-shell .booking-option-selector button { min-height: 220px; padding: 28px 30px 25px; }
 .site-shell .new-booking-layout { gap: 28px; }
 .site-shell .booking-form-panel { padding: 32px; }
 .site-shell .booking-form-heading { margin-bottom: 24px; gap: 14px; }
@@ -2754,67 +2824,17 @@ body {
 }
 
 /* =========================================================
-   BOOKING OPTION 1 + OPTION 2 — HOVER HIGHLIGHT
+   BOOKING OPTION 1 + OPTION 2 — PRICING-CARD HOVER
    ========================================================= */
 
 .booking-option-selector button {
-  transition:
-    transform 0.22s ease,
-    box-shadow 0.22s ease,
-    border-color 0.22s ease,
-    background 0.22s ease;
+  transition: transform 0.22s ease;
 }
 
-/* Slight scale + lift */
-.booking-option-selector button:hover {
-  transform: scale(1.025) translateY(-3px);
+.booking-option-selector button:hover,
+.booking-option-selector button.active {
+  transform: scale(1.025);
   z-index: 2;
-}
-
-/* OPTION 1 hover */
-.booking-option-selector button:first-child:hover {
-  border-color: #43a7ff;
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(17, 57, 88, 0.98),
-      rgba(7, 28, 44, 0.98)
-    );
-
-  box-shadow:
-    0 0 0 1px rgba(67, 167, 255, 0.28),
-    0 14px 36px rgba(67, 167, 255, 0.15),
-    0 18px 38px rgba(0, 0, 0, 0.28);
-}
-
-/* OPTION 1 icon + price */
-.booking-option-selector button:first-child:hover > svg,
-.booking-option-selector button:first-child:hover b {
-  color: #68b7ff;
-}
-
-/* OPTION 2 hover */
-.booking-option-selector button:nth-child(2):hover {
-  border-color: var(--green);
-
-  background:
-    linear-gradient(
-      145deg,
-      rgba(29, 65, 40, 0.98),
-      rgba(8, 31, 30, 0.98)
-    );
-
-  box-shadow:
-    0 0 0 1px rgba(123, 234, 41, 0.25),
-    0 14px 36px rgba(123, 234, 41, 0.14),
-    0 18px 38px rgba(0, 0, 0, 0.28);
-}
-
-/* OPTION 2 icon + price */
-.booking-option-selector button:nth-child(2):hover > svg,
-.booking-option-selector button:nth-child(2):hover b {
-  color: var(--green-soft);
 }
 
 /* =========================================================
@@ -2851,4 +2871,276 @@ body {
   height: 18px;
   padding: 0 4px;
   font-size: 9px !important;
+}
+
+
+/* Booking method selector — compact responsive cards */
+@media (max-width: 760px) {
+  .site-shell .booking-option-selector { grid-template-columns: 1fr; gap: 16px; }
+  .site-shell .booking-option-selector button { min-height: 190px; padding: 24px; }
+  .site-shell .booking-option-selector button h3 { font-size: 24px; }
+  .site-shell .booking-option-price-badge { font-size: 14px; }
+  .site-shell .booking-option-rate { font-size: 21px; }
+}
+
+/* ============================================================
+   OPTIMIZER RESULT — EXACT-MINUTE CHARGER OCCUPANCY
+   Compact cards match Admin Overview → Live Station Status
+   ============================================================ */
+.charger-occupancy-panel {
+  margin-top: 22px;
+  padding: 28px;
+  overflow: hidden;
+}
+
+.charger-occupancy-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.charger-occupancy-heading > div:first-child {
+  max-width: 800px;
+}
+
+.charger-occupancy-heading p {
+  margin: 0 0 7px;
+  color: #7bea29;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: .09em;
+}
+
+.charger-occupancy-heading h2 {
+  margin: 0 0 8px;
+  font-size: 24px;
+}
+
+.charger-occupancy-heading > div > span {
+  display: block;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.charger-occupancy-time-picker {
+  min-width: 250px;
+  padding: 14px 16px;
+  border: 1px solid rgba(67, 167, 255, .28);
+  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(16, 48, 73, .95), rgba(7, 26, 41, .95));
+  display: grid;
+  gap: 9px;
+}
+
+.charger-occupancy-time-picker > span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #9fcfff;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.charger-occupancy-time-picker input {
+  width: 100%;
+  min-height: 46px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  border-radius: 8px;
+  background: #071826;
+  color: #fff;
+  color-scheme: dark;
+  font-size: 19px;
+  font-weight: 800;
+  outline: none;
+}
+
+.charger-occupancy-time-picker input:focus {
+  border-color: #43a7ff;
+  box-shadow: 0 0 0 3px rgba(67, 167, 255, .12);
+}
+
+.charger-occupancy-time-picker small {
+  color: #8fa4b6;
+  font-size: 16px;
+}
+
+.charger-occupancy-compact-summary {
+  margin: 20px 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.charger-occupancy-compact-summary > div {
+  min-width: 145px;
+  padding: 10px 14px;
+  border: 1px solid var(--admin-border);
+  border-radius: 9px;
+  background: rgba(255,255,255,.025);
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.charger-occupancy-compact-summary strong {
+  color: #f4f8fb;
+  font-size: 18px;
+}
+
+.charger-occupancy-compact-summary span {
+  color: #9fb0bf;
+  font-size: 16px;
+}
+
+.charger-occupancy-mini-grid {
+  padding: 16px 0 0;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+/* Keep the exact same small tile appearance used in Live Station Status. */
+.charger-occupancy-mini-grid .admin-charger-mini {
+  min-height: 82px;
+}
+
+.charger-occupancy-unavailable {
+  margin-top: 22px;
+  padding: 18px;
+  border: 1px solid rgba(255, 183, 77, .3);
+  border-radius: 10px;
+  background: rgba(103, 67, 17, .16);
+  color: #ffd28d;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.charger-occupancy-unavailable > div {
+  display: grid;
+  gap: 5px;
+}
+
+.charger-occupancy-unavailable strong,
+.charger-occupancy-unavailable span {
+  font-size: 16px;
+}
+
+.charger-occupancy-unavailable span {
+  color: #c6b28d;
+}
+
+@media (max-width: 1180px) {
+  .charger-occupancy-mini-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .charger-occupancy-panel {
+    padding: 20px;
+  }
+
+  .charger-occupancy-heading {
+    flex-direction: column;
+  }
+
+  .charger-occupancy-time-picker {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .charger-occupancy-compact-summary {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .charger-occupancy-compact-summary > div {
+    min-width: 0;
+  }
+
+  .charger-occupancy-mini-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ============================================================
+   OPTIMIZER RESULT — SELECTED 15-MINUTE SLOT DETAILS
+   ============================================================ */
+.selected-slot-results-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.selected-slot-result-card {
+  min-height: 88px;
+  padding: 14px 16px;
+  border: 1px solid var(--admin-border);
+  border-radius: 9px;
+  background: rgba(255,255,255,.025);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+}
+
+.selected-slot-result-card span {
+  color: #91a6b8;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.selected-slot-result-card strong {
+  color: #f4f8fb;
+  font-size: 19px;
+  line-height: 1.3;
+  font-weight: 800;
+}
+
+@media (max-width: 980px) {
+  .selected-slot-results-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .selected-slot-results-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* ============================================================
+   OPTIMIZER RESULTS — CHARGER STATUS EMPHASIS
+   Scoped to the charger occupancy section only.
+   ============================================================ */
+.charger-occupancy-mini-grid .admin-charger-mini i {
+  width: 11px;
+  height: 11px;
+}
+
+.charger-occupancy-mini-grid .admin-charger-mini.available i {
+  background: var(--admin-green);
+  box-shadow: 0 0 0 4px rgba(120, 232, 47, .12);
+}
+
+.charger-occupancy-mini-grid .admin-charger-mini.available strong {
+  color: var(--admin-green);
+  font-weight: 800;
+}
+
+.charger-occupancy-mini-grid .admin-charger-mini.charging i {
+  background: #ff6565;
+  box-shadow: 0 0 0 4px rgba(255, 101, 101, .12);
+}
+
+.charger-occupancy-mini-grid .admin-charger-mini.charging strong {
+  color: #ff6565;
+  font-weight: 800;
 }

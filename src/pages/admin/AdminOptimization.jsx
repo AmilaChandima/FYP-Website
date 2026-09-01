@@ -14,6 +14,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PriceChart from "../../components/PriceChart";
+import ChargerOccupancyPanel from "../../components/ChargerOccupancyPanel";
 import { useStationData } from "../../context/StationDataContext";
 import {
   checkOptimizerHealth,
@@ -333,7 +334,7 @@ export default function AdminOptimization() {
             <div>
               <p>TOMORROW FORECAST OUTPUT</p>
               <h2>Optimization Results — {formatDateLabel(result.targetDate)}</h2>
-              <span>These values were read from this run's new `slot_summary_results.csv` and `final_milp_summary.csv`. No pre-optimization values are displayed as results.</span>
+              <span>These values are from the completed optimization run for tomorrow. No pre-optimization values are displayed as results.</span>
             </div>
             <div className="optimization-result-actions">
               <button className="admin-secondary-button" onClick={() => navigate(`/admin/optimization/results/${result.jobId}`)}>Full Detailed Results <ExternalLink size={17} /></button>
@@ -352,6 +353,13 @@ export default function AdminOptimization() {
             </div>
             <PriceChart prices={result.priceSignal} variant="forecast" />
           </article>
+
+          <ChargerOccupancyPanel
+            occupancy={result.chargerOccupancy}
+            slotOperation={result.slotOperation}
+            available={result.chargerOccupancyAvailable !== false && Boolean(result.chargerOccupancy)}
+            targetDate={result.targetDate}
+          />
 
           <div className="optimizer-summary-note">
             <Cpu />
