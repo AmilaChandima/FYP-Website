@@ -144,15 +144,15 @@ export default function AdminPricing() {
         <div>
           <p>PUBLIC & BOOKING PRICE CONTROL</p>
           <h1>Price Management</h1>
-          <span>Manage the public tariff, the 96-slot fixed-arrival booking schedule and the lower flexible-booking price.</span>
+          
         </div>
       </div>
 
       <section className="admin-panel admin-price-preview">
         <div className="admin-panel-heading">
           <div>
-            <h2><UsersRound size={20} /> Fixed-Arrival Booking Prices — Tomorrow</h2>
-            <p>These 96 values are the live registered-customer fixed-arrival prices used by the Pricing and Booking pages.</p>
+            <h2><UsersRound size={20} /> Fixed-Arrival Booking Prices : Tomorrow</h2>
+            
           </div>
           <button className="admin-primary-button" onClick={saveFixedSchedule}>
             <Save size={18} /> Update Fixed-Arrival Prices
@@ -181,6 +181,7 @@ export default function AdminPricing() {
         {fixedMessage && <div className="admin-save-message"><CheckCircle2 size={18} /> {fixedMessage}</div>}
       </section>
 
+{/*
       <section className="admin-panel admin-fixed-booking-prices">
         <div className="admin-panel-heading">
           <div>
@@ -210,7 +211,7 @@ export default function AdminPricing() {
         </div>
         {flexibleMessage && <div className="admin-save-message"><CheckCircle2 size={18} /> {flexibleMessage}</div>}
       </section>
-
+*/}
       <section className="admin-panel admin-price-toolbar">
         <div className="admin-control-group">
           <span>Public schedule day</span>

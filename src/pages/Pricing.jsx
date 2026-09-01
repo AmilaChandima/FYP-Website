@@ -179,12 +179,6 @@ export default function Pricing() {
               </b>
             </span>
 
-            <span>
-              Average
-              <b>
-                Rs. {stats.average.toFixed(2)}
-              </b>
-            </span>
 
             <span>
               High
@@ -226,12 +220,7 @@ export default function Pricing() {
               Tomorrow&apos;s Public Charging Price
             </h2>
 
-            <p style={{ fontSize: "18px" }}>
-              The station publishes this 96-slot forecast
-              after the administrator runs the Python
-              optimization using tomorrow&apos;s PV, EV-user,
-              grid-price and BESS forecast inputs.
-            </p>
+
           </div>
 
           <span
@@ -261,10 +250,8 @@ export default function Pricing() {
                 </h2>
 
                 <p style={{ fontSize: "18px" }}>
-                  Optimized day-ahead public charging-price
-                  signal. After midnight, this schedule
-                  automatically becomes today&apos;s public
-                  price.
+                  Day-ahead public charging-price
+                  signal.
                 </p>
               </div>
 
@@ -276,12 +263,7 @@ export default function Pricing() {
                   </b>
                 </span>
 
-                <span>
-                  Average
-                  <b>
-                    Rs. {tomorrowStats.average.toFixed(2)}
-                  </b>
-                </span>
+
 
                 <span>
                   High
@@ -346,15 +328,8 @@ export default function Pricing() {
               Tomorrow’s Common Booking-Price Schedule
             </h2>
 
-            <p style={{ fontSize: "18px" }}>
-              This 15-minute schedule is the common reference
-              for both registered booking methods.
-              Fixed-arrival customers pay the price at their
-              selected arrival time. Flexible customers
-              receive a lower tariff because the station can
-              choose the exact charging time inside their
-              acceptable range.
-            </p>
+
+
           </div>
 
           <div className="booking-requirement-note">
@@ -390,12 +365,6 @@ export default function Pricing() {
                 </b>
               </span>
 
-              <span>
-                Average
-                <b>
-                  Rs. {fixedStats.average.toFixed(2)}
-                </b>
-              </span>
 
               <span>
                 High
@@ -447,11 +416,7 @@ export default function Pricing() {
               Fixed-Arrival Booking
             </h3>
 
-            <p className="booking-rate">
-              Rs. {fixedStats.min.toFixed(0)}–
-              {fixedStats.max.toFixed(0)}{" "}
-              <small>/kWh</small>
-            </p>
+
 
             <p style={{ fontSize: "18px" }}>
               Tell us tomorrow’s arrival time, initial SOC and
@@ -506,11 +471,7 @@ export default function Pricing() {
               Flexible Smart Booking
             </h3>
 
-            <p className="booking-rate">
-              Rs. {flexibleStats.min.toFixed(0)}–
-              {flexibleStats.max.toFixed(0)}{" "}
-              <small>/kWh</small>
-            </p>
+
 
             <p style={{ fontSize: "18px" }}>
               Give an acceptable arrival-time range for

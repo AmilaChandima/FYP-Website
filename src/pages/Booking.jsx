@@ -56,12 +56,6 @@ function calculateForUser(user, form) {
   }
 }
 
-function buildFlexiblePriceSchedule(fixedPrices, flexibleReferencePrice) {
-  const fixedAverage = fixedPrices.reduce((sum, value) => sum + Number(value), 0) / fixedPrices.length;
-  const discount = Math.max(5, fixedAverage - Number(flexibleReferencePrice));
-  return fixedPrices.map((price) => Number((Number(price) - discount).toFixed(2)));
-}
-
 function bookingStatusLabel(booking) {
   if (booking.status === "pending") return "Waiting for scheduling";
   if (booking.status === "scheduled") return "Scheduled by station";
@@ -95,10 +89,7 @@ export default function Booking() {
   );
 
   const fixedBookingPriceSchedule = fixedArrivalTomorrowPrices;
-  const flexibleBookingPriceSchedule = useMemo(
-    () => buildFlexiblePriceSchedule(fixedBookingPriceSchedule, flexibleBookingPrice),
-    [fixedBookingPriceSchedule, flexibleBookingPrice]
-  );
+  const flexibleBookingPriceSchedule = fixedBookingPriceSchedule;
 
   const selectedFixedArrivalSlot = Math.min(
     95,
@@ -136,29 +127,29 @@ export default function Booking() {
     setError("");
   }
 
-  async function submitFixed(event) {
+  function submitFixed(event) {
     event.preventDefault();
     setError("");
     setMessage("");
     try {
-      const booking = await createFixedBooking({
+      const booking = createFixedBooking({
         user,
         ...fixedForm,
         price: selectedFixedArrivalPrice,
       });
-      setMessage(`Booking confirmed. Charger ${String(booking.chargerId).padStart(2, "0")} is reserved tomorrow from ${formatTime12(booking.scheduledStart)} to ${formatTime12(booking.scheduledEnd)}.`);
+      setMessage(`Booking confirmed.`);
       setVersion((value) => value + 1);
     } catch (err) {
       setError(err.message || "The booking could not be created.");
     }
   }
 
-  async function submitFlexible(event) {
+  function submitFlexible(event) {
     event.preventDefault();
     setError("");
     setMessage("");
     try {
-      await createFlexibleBooking({
+      createFlexibleBooking({
         user,
         ...flexibleForm,
         price: flexibleBookingPrice,
@@ -167,19 +158,6 @@ export default function Booking() {
       setVersion((value) => value + 1);
     } catch (err) {
       setError(err.message || "The flexible booking request could not be submitted.");
-    }
-  }
-
-
-  async function cancelExistingBooking(bookingId) {
-    setError("");
-    setMessage("");
-    try {
-      await cancelBooking(bookingId, user.id);
-      setMessage("The booking was cancelled.");
-      setVersion((value) => value + 1);
-    } catch (err) {
-      setError(err.message || "Unable to cancel the booking in MongoDB.");
     }
   }
 
@@ -208,6 +186,108 @@ export default function Booking() {
   const flexibleScheduleMinimum = Math.min(...flexibleBookingPriceSchedule);
   const flexibleScheduleMaximum = Math.max(...flexibleBookingPriceSchedule);
 
+  function variableSessionCost(startMinutes, durationMinutes, energyKwh, priceSchedule) {
+    const duration = Number(durationMinutes);
+    const energy = Number(energyKwh);
+
+    if (
+      !Number.isFinite(startMinutes)
+      || !Number.isFinite(duration)
+      || duration <= 0
+      || !Number.isFinite(energy)
+      || energy <= 0
+      || !Array.isArray(priceSchedule)
+      || priceSchedule.length < 96
+    ) {
+      return null;
+    }
+
+    const sessionEnd = startMinutes + duration;
+    if (startMinutes < 0 || sessionEnd > 1440) return null;
+
+    const energyPerMinute = energy / duration;
+    let totalCost = 0;
+    let cursor = startMinutes;
+
+    while (cursor < sessionEnd - 1e-9) {
+      const slotIndex = Math.max(0, Math.min(95, Math.floor(cursor / 15)));
+      const slotPrice = Number(priceSchedule[slotIndex]);
+      if (!Number.isFinite(slotPrice)) return null;
+
+      const slotEndMinute = Math.min(sessionEnd, (slotIndex + 1) * 15);
+      const minutesInThisSlot = slotEndMinute - cursor;
+      const energyInThisSlot = energyPerMinute * minutesInThisSlot;
+
+      totalCost += energyInThisSlot * slotPrice;
+      cursor = slotEndMinute;
+    }
+
+    return totalCost;
+  }
+
+  function bookingEnergyPrice(booking) {
+    const energyKwh = Number(booking.energyRequiredKwh || 0);
+    const durationMinutes = Number(booking.durationMinutes || 0);
+    if (
+      !Number.isFinite(energyKwh)
+      || energyKwh <= 0
+      || !Number.isFinite(durationMinutes)
+      || durationMinutes <= 0
+    ) {
+      return null;
+    }
+
+    const exactArrivalTime = booking.scheduledStart
+      || (booking.bookingType === "fixed" ? booking.arrivalTime : null);
+
+    if (exactArrivalTime) {
+      const total = variableSessionCost(
+        minutesFromTime(exactArrivalTime),
+        durationMinutes,
+        energyKwh,
+        fixedBookingPriceSchedule
+      );
+
+      if (Number.isFinite(total)) return `Rs. ${total.toFixed(2)}`;
+    }
+
+    if (booking.bookingType === "flexible" && booking.windowStart && booking.windowEnd) {
+      const windowStart = minutesFromTime(booking.windowStart);
+      const windowEnd = minutesFromTime(booking.windowEnd);
+      const candidateTotals = [];
+
+      if (windowEnd > windowStart) {
+        const firstCandidate = Math.ceil(windowStart / 15) * 15;
+
+        for (let start = firstCandidate; start <= windowEnd; start += 15) {
+          const total = variableSessionCost(
+            start,
+            durationMinutes,
+            energyKwh,
+            flexibleBookingPriceSchedule
+          );
+          if (Number.isFinite(total)) candidateTotals.push(total);
+        }
+      }
+
+      if (candidateTotals.length > 0) {
+        const minimumTotal = Math.min(...candidateTotals);
+        const maximumTotal = Math.max(...candidateTotals);
+
+        if (Math.abs(maximumTotal - minimumTotal) < 0.005) {
+          return `Rs. ${minimumTotal.toFixed(2)}`;
+        }
+
+        return `Rs. ${minimumTotal.toFixed(2)}–${maximumTotal.toFixed(2)}`;
+      }
+    }
+
+    const storedUnitPrice = Number(booking.price);
+    return Number.isFinite(storedUnitPrice)
+      ? `Rs. ${(energyKwh * storedUnitPrice).toFixed(2)}`
+      : null;
+  }
+
   return (
     <section className="page-width inner-page booking-page dual-booking-page">
       <div className="booking-heading-row">
@@ -222,15 +302,32 @@ export default function Booking() {
       </div>
 
       <div className="booking-option-selector">
-        <button className={bookingType === "fixed" ? "active fixed" : ""} onClick={() => selectType("fixed")}>
-          <CalendarClock />
-          <span><small>OPTION 1</small><strong>Fixed-Arrival Booking</strong><em>Choose your exact arrival time</em></span>
-          <b>Rs. {fixedPriceMinimum.toFixed(0)}–{fixedPriceMaximum.toFixed(0)}/kWh</b>
+        <button
+          type="button"
+          className={bookingType === "fixed" ? "active fixed" : "fixed"}
+          onClick={() => selectType("fixed")}
+        >
+          <div className="booking-option-topline">
+            <span>OPTION 1</span>
+            <CalendarClock />
+          </div>
+          <div className="booking-option-price-badge fixed-badge">STANDARD PRICE</div>
+          <h3>Fixed-Arrival Booking</h3>
+
         </button>
-        <button className={bookingType === "flexible" ? "active flexible" : ""} onClick={() => selectType("flexible")}>
-          <Sparkles />
-          <span><small>OPTION 2 · LOWER PRICE</small><strong>Flexible Smart Booking</strong><em>Give a time range and let the station schedule you</em></span>
-          <b>Rs. {flexibleScheduleMinimum.toFixed(0)}–{flexibleScheduleMaximum.toFixed(0)}/kWh</b>
+
+        <button
+          type="button"
+          className={bookingType === "flexible" ? "active flexible" : "flexible"}
+          onClick={() => selectType("flexible")}
+        >
+          <div className="booking-option-topline">
+            <span>OPTION 2</span>
+            <Sparkles />
+          </div>
+          <div className="booking-option-price-badge flexible-badge">LOWER THAN FIXED-ARRIVAL PRICES</div>
+          <h3>Flexible Smart Booking</h3>
+
         </button>
       </div>
 
@@ -243,7 +340,7 @@ export default function Booking() {
                 <div>
                   <p>FIXED-ARRIVAL RESERVATION</p>
                   <h2>Reserve a charger at your selected time</h2>
-                  <span>The complete calculated charging period must fit within tomorrow and one of the 10 chargers must be free.</span>
+                  
                 </div>
               </div>
 
@@ -252,7 +349,7 @@ export default function Booking() {
                   <div>
                     <p>TOMORROW’S FIXED-ARRIVAL PRICE</p>
                     <h3>15-Minute Booking Price Schedule</h3>
-                    <span>Hover over the step graph to check the booking price at any arrival time.</span>
+                    
                   </div>
                   <strong>Rs. {selectedFixedArrivalPrice.toFixed(2)}<small>/kWh</small></strong>
                 </div>
@@ -265,10 +362,7 @@ export default function Booking() {
                   activeLabel="Selected arrival"
                 />
 
-                <div className="fixed-booking-chart-note">
-                  The fixed-arrival booking price varies throughout tomorrow. The price applied to your reservation
-                  is the value assigned to the 15-minute interval containing your selected arrival time.
-                </div>
+
               </div>
 
               <div className="booking-input-grid">
@@ -283,7 +377,7 @@ export default function Booking() {
                 <label className="full-field">
                   <span>Arrival time tomorrow</span>
                   <input name="arrivalTime" type="time" step="60" value={fixedForm.arrivalTime} onChange={updateFixed} required />
-                  <small>You may select an exact minute. The calculated session will reserve one charger continuously.</small>
+                 
                 </label>
               </div>
 
@@ -307,7 +401,7 @@ export default function Booking() {
                 <div>
                   <p>FLEXIBLE SMART RESERVATION</p>
                   <h2>Give the station a suitable time range</h2>
-                  <span>The optimization algorithm will select an exact arrival time within your range and notify you. Charging may continue beyond the range end.</span>
+                  <span>The station will notify you with the exact arrival time after scheduling.</span>
                 </div>
               </div>
 
@@ -315,8 +409,8 @@ export default function Booking() {
                 <div className="fixed-booking-price-chart-heading">
                   <div>
                     <p>TOMORROW’S FLEXIBLE BOOKING PRICE</p>
-                    <h3>Lower 15-Minute Price Schedule</h3>
-                    <span>Select your acceptable arrival range to highlight it and view the possible price range.</span>
+                    <h3>15-Minute Booking Price Schedule</h3>
+                    <span>Select your acceptable arrival range.</span>
                   </div>
                   <strong>
                     {selectedFlexiblePriceMinimum !== null
@@ -335,10 +429,7 @@ export default function Booking() {
                   rangeLabel="Arrival range"
                 />
 
-                <div className="fixed-booking-chart-note">
-                  Flexible prices remain below the fixed-arrival schedule. The station will select one exact arrival
-                  time inside your highlighted range, and the final price will correspond to that scheduled time.
-                </div>
+
               </div>
 
               <div className="booking-input-grid">
@@ -384,13 +475,7 @@ export default function Booking() {
         </article>
 
         <aside className="booking-information-column">
-          <article className="panel booking-rule-card">
-            <Info />
-            <div>
-              <h3>How charger capacity is protected</h3>
-              <p>Every confirmed session reserves one charger for its full calculated duration. The system rejects a fixed arrival if all 10 chargers would already be occupied during any part of that period.</p>
-            </div>
-          </article>
+
 
           <article className="panel my-bookings new-my-bookings">
             <div className="my-bookings-heading"><h2>My Booking Requests</h2><span>{myBookings.length}</span></div>
@@ -410,9 +495,13 @@ export default function Booking() {
                 ) : (
                   <p>Requested range: {formatTime12(booking.windowStart)}–{formatTime12(booking.windowEnd)}</p>
                 )}
-                <small>{booking.durationMinutes} min · {Number(booking.energyRequiredKwh || 0).toFixed(1)} kWh · Rs. {Number(booking.price).toFixed(2)}/kWh</small>
+                <small>
+                  {booking.durationMinutes} min · {Number(booking.energyRequiredKwh || 0).toFixed(1)} kWh
+                  {bookingEnergyPrice(booking) ? ` · Total ${bookingEnergyPrice(booking)}` : ""}
+                </small>
+                {booking.notification && <div className="booking-notification"><BellRing /> {booking.notification}</div>}
                 {["pending", "scheduled", "reserved"].includes(booking.status) && (
-                  <button className="cancel-booking-button" onClick={() => cancelExistingBooking(booking.id)}><XCircle /> Cancel</button>
+                  <button className="cancel-booking-button" onClick={() => cancelBooking(booking.id, user.id)}><XCircle /> Cancel</button>
                 )}
               </div>
             ))}

@@ -3,9 +3,11 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import AdminForecastChart from "../../components/AdminForecastChart";
 import PriceChart from "../../components/PriceChart";
-import { getOptimizerJob, publishTomorrowPriceAndNotify } from "../../services/optimizerApi";
+import ChargerOccupancyPanel from "../../components/ChargerOccupancyPanel";
+import { getOptimizerJob, publishTomorrowPrice } from "../../services/optimizerApi";
 import { useStationData } from "../../context/StationDataContext";
 import { formatDateLabel } from "../../utils/time";
+import { applyElasticOptimizerNotifications } from "../../services/bookings";
 
 function metric(value, suffix = "") {
   return `${Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}${suffix}`;
@@ -40,9 +42,9 @@ export default function AdminOptimizationResults() {
     setError("");
     setMessage("");
     try {
-      const published = await publishTomorrowPriceAndNotify(result.jobId);
+      const published = await publishTomorrowPrice(result.jobId);
       await station.syncPublishedPrices();
-      const delivered = published;
+      const delivered = applyElasticOptimizerNotifications(result);
 
       let notificationSummary = "No website-linked flexible notifications were present in this optimizer run.";
       if (delivered.deliveredCount > 0) {
@@ -71,7 +73,7 @@ export default function AdminOptimizationResults() {
         <div>
           <p>FULL FORECAST ANALYSIS</p>
           <h1>Tomorrow's Charging Station Operation</h1>
-          <span>{formatDateLabel(result.targetDate)} · Results from the completed Python optimizer run. Charts contain optimized/forecast values only.</span>
+          <span>{formatDateLabel(result.targetDate)} · Results from the completed intelligent controller run.</span>
         </div>
         <div className="admin-heading-actions">
           <button className="admin-secondary-button" onClick={() => navigate("/admin/optimization")}><ArrowLeft size={17} /> Back to Key Results</button>
@@ -102,6 +104,13 @@ export default function AdminOptimizationResults() {
         <div className="admin-panel-heading"><div><h2>Generated Public Price Signal</h2><p>96 optimized prices for tomorrow.</p></div></div>
         <PriceChart prices={result.priceSignal} variant="forecast" />
       </article>
+
+      <ChargerOccupancyPanel
+        occupancy={result.chargerOccupancy}
+        slotOperation={result.slotOperation}
+        available={result.chargerOccupancyAvailable !== false && Boolean(result.chargerOccupancy)}
+        targetDate={result.targetDate}
+      />
 
       <section className="forecast-chart-grid">
         <article className="admin-panel forecast-chart-panel">
