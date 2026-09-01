@@ -144,7 +144,7 @@ export default function AdminPricing() {
         <div>
           <p>PUBLIC & BOOKING PRICE CONTROL</p>
           <h1>Price Management</h1>
-          <span>Manage the public tariff, the 96-slot fixed-arrival booking schedule and the lower flexible-booking price.</span>
+          
         </div>
       </div>
 

@@ -4,7 +4,6 @@ import {
   BookOpenCheck,
   ChevronLeft,
   ChevronRight,
-  CircleDollarSign,
   Gauge,
   LogOut,
   Menu,
@@ -25,7 +24,6 @@ const links = [
   { to: "/admin/chargers", label: "Charger Control", icon: BatteryCharging },
   { to: "/admin/bookings", label: "Bookings", icon: BookOpenCheck },
   { to: "/admin/customers", label: "Customers", icon: UsersRound },
-  { to: "/admin/revenue", label: "Income & Revenue", icon: CircleDollarSign },
 ];
 
 const ADMIN_BOOKINGS_SEEN_KEY = "solarcharge_admin_bookings_seen_at_v1";

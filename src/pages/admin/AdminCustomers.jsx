@@ -29,7 +29,7 @@ export default function AdminCustomers() {
 
   return (
     <div className="admin-page">
-      <div className="admin-page-heading"><div><p>CUSTOMER DATABASE</p><h1>Registered Customers</h1><span>View customer contact details, EV specifications and complete reservation history.</span></div></div>
+      <div className="admin-page-heading"><div><p>CUSTOMER DATABASE</p><h1>Registered Customers</h1></div></div>
 
       <div className="admin-customer-layout">
         <section className="admin-panel admin-customer-list">

@@ -252,7 +252,7 @@ export default function AdminOptimization() {
         <div>
           <p>PYTHON MILP OPTIMIZER</p>
           <h1>Tomorrow Forecast & Price Optimization</h1>
-          <span>Upload the three forecast inputs for {formatDateLabel(tomorrow)}, run the supplied Python optimizer, review the new forecast results, then publish tomorrow's 96-slot public price.</span>
+          <span>Upload the three forecast inputs for {formatDateLabel(tomorrow)}</span>
         </div>
       </div>
 
@@ -334,7 +334,7 @@ export default function AdminOptimization() {
             <div>
               <p>TOMORROW FORECAST OUTPUT</p>
               <h2>Optimization Results — {formatDateLabel(result.targetDate)}</h2>
-              <span>These values are from the completed optimization run for tomorrow. No pre-optimization values are displayed as results.</span>
+              
             </div>
             <div className="optimization-result-actions">
               <button className="admin-secondary-button" onClick={() => navigate(`/admin/optimization/results/${result.jobId}`)}>Full Detailed Results <ExternalLink size={17} /></button>
@@ -348,7 +348,7 @@ export default function AdminOptimization() {
 
           <article className="admin-panel tomorrow-result-panel">
             <div className="admin-panel-heading">
-              <div><h2>Generated 15-Minute Public Price Signal</h2><p>Forecast public charging price for tomorrow. Hover to inspect each 15-minute value.</p></div>
+              <div><h2>Generated 15-Minute Public Price Signal</h2><p>Forecast public charging price for tomorrow.</p></div>
               <div className="forecast-price-range"><span>Low Rs. {metrics.priceMinimumLKRkWh.toFixed(2)}</span><span>Avg Rs. {metrics.priceAverageLKRkWh.toFixed(2)}</span><span>High Rs. {metrics.priceMaximumLKRkWh.toFixed(2)}</span></div>
             </div>
             <PriceChart prices={result.priceSignal} variant="forecast" />
@@ -371,7 +371,7 @@ export default function AdminOptimization() {
       {history.length > 0 && (
         <section className="admin-panel" style={{ marginTop: 22 }}>
           <div className="admin-panel-heading">
-            <div><h2>Previous Optimization Runs</h2><p>Completed runs remain available while you navigate the admin dashboard. Open any run without rerunning the optimizer.</p></div>
+            <div><h2>Previous Optimization Runs</h2></div>
           </div>
           <div className="forecast-download-row" style={{ flexWrap: "wrap", justifyContent: "flex-start" }}>
             {history.map((item) => (
