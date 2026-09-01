@@ -151,8 +151,8 @@ export default function AdminPricing() {
       <section className="admin-panel admin-price-preview">
         <div className="admin-panel-heading">
           <div>
-            <h2><UsersRound size={20} /> Fixed-Arrival Booking Prices — Tomorrow</h2>
-            <p>These 96 values are the live registered-customer fixed-arrival prices used by the Pricing and Booking pages.</p>
+            <h2><UsersRound size={20} /> Fixed-Arrival Booking Prices : Tomorrow</h2>
+            
           </div>
           <button className="admin-primary-button" onClick={saveFixedSchedule}>
             <Save size={18} /> Update Fixed-Arrival Prices

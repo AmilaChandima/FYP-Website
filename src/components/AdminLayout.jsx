@@ -1,6 +1,5 @@
 import {
   BarChart3,
-  BatteryCharging,
   BookOpenCheck,
   ChevronLeft,
   ChevronRight,
@@ -19,9 +18,8 @@ import { getBookings, subscribeToBookings } from "../services/bookings";
 
 const links = [
   { to: "/admin/dashboard", label: "Overview", icon: Gauge },
-  { to: "/admin/optimization", label: "Price Optimization", icon: Sparkles },
+  { to: "/admin/optimization", label: "Intelligent Controller", icon: Sparkles },
   { to: "/admin/prices", label: "Price Management", icon: SlidersHorizontal },
-  { to: "/admin/chargers", label: "Charger Control", icon: BatteryCharging },
   { to: "/admin/bookings", label: "Bookings", icon: BookOpenCheck },
   { to: "/admin/customers", label: "Customers", icon: UsersRound },
 ];

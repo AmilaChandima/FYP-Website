@@ -16,7 +16,6 @@ import AdminOverview from "./pages/admin/AdminOverview";
 import AdminOptimization from "./pages/admin/AdminOptimization";
 import AdminOptimizationResults from "./pages/admin/AdminOptimizationResults";
 import AdminPricing from "./pages/admin/AdminPricing";
-import AdminChargers from "./pages/admin/AdminChargers";
 import AdminBookings from "./pages/admin/AdminBookings";
 import AdminCustomers from "./pages/admin/AdminCustomers";
 
@@ -48,7 +47,6 @@ export default function App() {
         <Route path="/admin/optimization" element={<AdminOptimization />} />
         <Route path="/admin/optimization/results/:jobId" element={<AdminOptimizationResults />} />
         <Route path="/admin/prices" element={<AdminPricing />} />
-        <Route path="/admin/chargers" element={<AdminChargers />} />
         <Route path="/admin/bookings" element={<AdminBookings />} />
         <Route path="/admin/customers" element={<AdminCustomers />} />
       </Route>

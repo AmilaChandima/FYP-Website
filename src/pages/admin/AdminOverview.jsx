@@ -290,13 +290,13 @@ export default function AdminOverview() {
         <article className="admin-stat-card chargers"><div><span>Charger availability</span><strong>{available} / 10</strong><small><Zap size={14} /> {occupied} currently occupied</small></div><BatteryCharging /></article>
         <article className="admin-stat-card customers"><div><span>Registered customers</span><strong>{registeredCustomerTotal}</strong></div><UsersRound /></article>
       </section>
-
+{/*}
       <section className="admin-booking-rate-strip">
         <span>Fixed-arrival booking <strong>Rs. {fixedBookingMin.toFixed(2)}–{fixedBookingMax.toFixed(2)}/kWh</strong></span>
         <span>Flexible smart booking <strong>Rs. {Number(flexibleBookingPrice).toFixed(2)}/kWh</strong></span>
         <Link to="/admin/prices">Manage booking rates</Link>
       </section>
-
+*/}
       <section className="admin-panel admin-operations-card overview-realtime-occupancy-card">
           <div className="admin-panel-heading">
             <div><h2>Real-Time Charger Occupancy</h2><p>{formatDateLabel(clock.date)} · {formatTime12(clock.time24)}</p></div>

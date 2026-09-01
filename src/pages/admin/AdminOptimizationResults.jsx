@@ -73,7 +73,7 @@ export default function AdminOptimizationResults() {
         <div>
           <p>FULL FORECAST ANALYSIS</p>
           <h1>Tomorrow's Charging Station Operation</h1>
-          <span>{formatDateLabel(result.targetDate)} · Results from the completed optimizer run.</span>
+          <span>{formatDateLabel(result.targetDate)} · Results from the completed intelligent controller run.</span>
         </div>
         <div className="admin-heading-actions">
           <button className="admin-secondary-button" onClick={() => navigate("/admin/optimization")}><ArrowLeft size={17} /> Back to Key Results</button>

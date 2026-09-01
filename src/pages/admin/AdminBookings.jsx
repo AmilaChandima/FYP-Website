@@ -37,13 +37,28 @@ export default function AdminBookings() {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [baseInfo, setBaseInfo] = useState(null);
+  const [baseInfoError, setBaseInfoError] = useState("");
   const [builderResult, setBuilderResult] = useState(null);
   const [builderError, setBuilderError] = useState("");
   const [building, setBuilding] = useState(false);
 
   useEffect(() => subscribeToBookings(() => setVersion((value) => value + 1)), []);
   useEffect(() => {
-    getPrimaryElasticBaseInfo().then(setBaseInfo).catch(() => setBaseInfo(null));
+    let active = true;
+
+    getPrimaryElasticBaseInfo()
+      .then((result) => {
+        if (!active) return;
+        setBaseInfo(result);
+        setBaseInfoError("");
+      })
+      .catch((error) => {
+        if (!active) return;
+        setBaseInfo(null);
+        setBaseInfoError(error.message || "Unable to load the original user counts.");
+      });
+
+    return () => { active = false; };
   }, []);
 
   const bookings = useMemo(
@@ -89,8 +104,9 @@ export default function AdminBookings() {
     }
   }
 
-  const basePrimaryUsers = Number(baseInfo?.primaryUsers || 0);
-  const baseElasticUsers = Number(baseInfo?.elasticUsers || 0);
+  const basePrimaryUsers = Number(baseInfo?.primaryUsers);
+  const baseElasticUsers = Number(baseInfo?.elasticUsers);
+  const baseCountsReady = Number.isFinite(basePrimaryUsers) && Number.isFinite(baseElasticUsers);
   const tomorrowKey = getTomorrowDateKey();
   const websiteFixedReservations = bookings.filter(
     (item) => item.date === tomorrowKey && item.bookingType === "fixed" && item.status === "reserved"
@@ -100,11 +116,19 @@ export default function AdminBookings() {
   ).length;
 
   const counts = {
-    fixed: basePrimaryUsers + websiteFixedReservations,
-    pending: baseElasticUsers + websiteFlexiblePending,
+    fixed: (baseCountsReady ? basePrimaryUsers : 0) + websiteFixedReservations,
+    pending: (baseCountsReady ? baseElasticUsers : 0) + websiteFlexiblePending,
     scheduled: bookings.filter((item) => item.bookingType === "flexible" && item.status === "scheduled").length,
     completed: bookings.filter((item) => item.status === "completed").length,
   };
+
+  const showScheduledPeriod = ["reserved", "scheduled", "completed"].includes(filter);
+  const showStatus = filter !== "pending";
+  const showAdminAction = ["all", "reserved", "scheduled"].includes(filter);
+  const visibleColumnCount = 4
+    + (showScheduledPeriod ? 1 : 0)
+    + (showStatus ? 1 : 0)
+    + (showAdminAction ? 1 : 0);
 
   return (
     <div className="admin-page">
@@ -112,7 +136,7 @@ export default function AdminBookings() {
         <div>
           <p>RESERVATION & FLEXIBILITY MANAGEMENT</p>
           <h1>Customer Bookings</h1>
-          <span>Review bookings and prepare tomorrow's website bookings for the Python optimizer.</span>
+          <span>Review bookings and prepare tomorrow's website bookings.</span>
         </div>
         <button className="admin-secondary-button" onClick={downloadTomorrowBookingsCsv}>
           <Download size={18} /> Export Tomorrow CSV
@@ -120,23 +144,28 @@ export default function AdminBookings() {
       </div>
 
       <section className="admin-stat-grid compact">
-        <article className="admin-stat-card bookings"><div><span>Fixed reservations</span><strong>{counts.fixed}</strong></div><BookOpenCheck /></article>
-        <article className="admin-stat-card warning"><div><span>Flexible pending</span><strong>{counts.pending}</strong></div><Sparkles /></article>
-        <article className="admin-stat-card chargers"><div><span>Flexible scheduled</span><strong>{counts.scheduled}</strong><small>Customers notified</small></div><BellRing /></article>
-        <article className="admin-stat-card customers"><div><span>Completed</span><strong>{counts.completed}</strong><small>Historical sessions</small></div><CheckCircle2 /></article>
+        <article className="admin-stat-card bookings"><div><span>Fixed reservations</span><strong>{baseCountsReady ? counts.fixed : "—"}</strong></div><BookOpenCheck /></article>
+        <article className="admin-stat-card warning"><div><span>Flexible pending</span><strong>{baseCountsReady ? counts.pending : "—"}</strong></div><Sparkles /></article>
+{/*        <article className="admin-stat-card chargers"><div><span>Flexible scheduled</span><strong>{counts.scheduled}</strong><small>Customers notified</small></div><BellRing /></article>*/}
+
       </section>
+
+      {baseInfoError && (
+        <div className="optimizer-error-panel compact-error">
+          <span>{baseInfoError}</span>
+        </div>
+      )}
 
       <section className="admin-panel optimizer-input-builder">
         <div className="admin-panel-heading">
           <div>
             <h2>Build Primary_Elastic_EV_Users.xlsx</h2>
-           
+            
           </div>
           <FileSpreadsheet />
         </div>
         <div className="optimizer-builder-flow">
-
-          <article><small>Next optimizer input</small><strong>{baseInfo ? baseInfo.baseRows + optimizerBookings.length : "—"} users</strong><span>Fresh generated workbook</span></article>
+          
         </div>
 
         {builderError && <div className="optimizer-error-panel compact-error"><span>{builderError}</span></div>}
@@ -167,7 +196,15 @@ export default function AdminBookings() {
         <div className="admin-table-wrap">
           <table className="admin-table admin-booking-table-wide">
             <thead>
-              <tr><th>Customer & EV</th><th>Method</th><th>SOC / Energy</th><th>Requested time</th><th>Scheduled period</th><th>Charger</th><th>Price</th><th>Status</th><th>Admin action</th></tr>
+              <tr>
+                <th>Customer & EV</th>
+                <th>Method</th>
+                <th>SOC / Energy</th>
+                <th>Requested time</th>
+                {showScheduledPeriod && <th>Scheduled period</th>}
+                {showStatus && <th>Status</th>}
+                {showAdminAction && <th>Admin action</th>}
+              </tr>
             </thead>
             <tbody>
               {filtered.map((booking) => (
@@ -176,18 +213,20 @@ export default function AdminBookings() {
                   <td><span className={`booking-type-pill ${booking.bookingType}`}>{booking.bookingType === "fixed" ? "Fixed arrival" : "Flexible"}</span></td>
                   <td><strong>{booking.initialSoc}% → {booking.targetSoc}%</strong><small>{Number(booking.energyRequiredKwh || 0).toFixed(1)} kWh · {booking.durationMinutes} min</small></td>
                   <td><strong>{formatDateLabel(booking.date)}</strong><small>{booking.bookingType === "fixed" ? `Arrival ${formatTime12(booking.arrivalTime)}` : `Range ${formatTime12(booking.windowStart)}–${formatTime12(booking.windowEnd)}`}</small></td>
-                  <td>{booking.scheduledStart ? <span className="admin-time-cell"><Clock3 size={15} /> {formatTime12(booking.scheduledStart)}–{formatTime12(booking.scheduledEnd)}</span> : <span className="admin-muted-value">Not assigned</span>}</td>
-                  <td>{booking.chargerId ? `Charger ${String(booking.chargerId).padStart(2, "0")}` : "—"}</td>
-                  <td>Rs. {Number(booking.price).toFixed(2)}/kWh</td>
-                  <td><span className={`admin-status-pill ${booking.status}`}>{statusLabel(booking.status)}</span></td>
-                  <td><div className="admin-row-actions">
-                    {["reserved", "scheduled"].includes(booking.status) && <><button title="Mark completed" onClick={() => setStatus(booking.id, "completed")}><CheckCircle2 /></button><button title="Cancel booking" className="danger" onClick={() => setStatus(booking.id, "cancelled")}><Ban /></button></>}
-                    {booking.status === "pending" && <span className="admin-pending-note">Include in next optimizer input</span>}
-                    {["completed", "cancelled"].includes(booking.status) && <button onClick={() => setStatus(booking.id, booking.bookingType === "flexible" ? "pending" : "reserved")}>Restore</button>}
-                  </div></td>
+                  {showScheduledPeriod && (
+                    <td>{booking.scheduledStart ? <span className="admin-time-cell"><Clock3 size={15} /> {formatTime12(booking.scheduledStart)}–{formatTime12(booking.scheduledEnd)}</span> : <span className="admin-muted-value">Not assigned</span>}</td>
+                  )}
+                  {showStatus && <td><span className={`admin-status-pill ${booking.status}`}>{statusLabel(booking.status)}</span></td>}
+                  {showAdminAction && (
+                    <td><div className="admin-row-actions">
+                      {["reserved", "scheduled"].includes(booking.status) && <><button title="Mark completed" onClick={() => setStatus(booking.id, "completed")}><CheckCircle2 /></button><button title="Cancel booking" className="danger" onClick={() => setStatus(booking.id, "cancelled")}><Ban /></button></>}
+                      {booking.status === "pending" && <span className="admin-pending-note">Include in next optimizer input</span>}
+                      {["completed", "cancelled"].includes(booking.status) && <button onClick={() => setStatus(booking.id, booking.bookingType === "flexible" ? "pending" : "reserved")}>Restore</button>}
+                    </div></td>
+                  )}
                 </tr>
               ))}
-              {filtered.length === 0 && <tr><td colSpan="9" className="admin-empty-table">No bookings match the selected filter.</td></tr>}
+              {filtered.length === 0 && <tr><td colSpan={visibleColumnCount} className="admin-empty-table">No bookings match the selected filter.</td></tr>}
             </tbody>
           </table>
         </div>

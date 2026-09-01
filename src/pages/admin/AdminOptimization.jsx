@@ -250,17 +250,17 @@ export default function AdminOptimization() {
     <div className="admin-page optimization-live-page">
       <div className="admin-page-heading">
         <div>
-          <p>PYTHON MILP OPTIMIZER</p>
-          <h1>Tomorrow Forecast & Price Optimization</h1>
-          <span>Upload the three forecast inputs for {formatDateLabel(tomorrow)}</span>
+          <p>INTELLIGENT CONTROLLER</p>
+          <h1>Run the Intelligent Controller</h1>
+          <span>Upload forecast inputs for {formatDateLabel(tomorrow)}</span>
         </div>
       </div>
 
       <div className={`optimizer-backend-status ${backendOnline === false ? "offline" : ""}`}>
         <DatabaseZap />
         <div>
-          <strong>{backendOnline === false ? "Optimizer backend is offline" : backendOnline === true ? "Python optimizer backend connected" : "Checking optimizer backend..."}</strong>
-          <p>{backendOnline === false ? "Start the FastAPI backend on port 8000 before running optimization." : "The web interface runs the original optimizer in the backend; results shown here come from the newly generated output files."}</p>
+          <strong>{backendOnline === false ? "Intelligent Controller backend is offline" : backendOnline === true ? "Intelligent Controller backend connected" : "Checking intelligent controller backend..."}</strong>
+          <p>{backendOnline === false ? "Start the FastAPI backend on port 8000 before running optimization." : ""}</p>
         </div>
       </div>
 
@@ -289,7 +289,7 @@ export default function AdminOptimization() {
       <section className="admin-run-panel optimizer-run-bar">
         <div>
           <strong>Input readiness: {INPUTS.filter((input) => files[input.key]).length}/3 files</strong>
-          <span>All uploaded values and optimizer outputs represent forecasts for tomorrow.</span>
+          <span>All uploaded values and intelligent controller outputs represent forecasts for tomorrow.</span>
         </div>
         <div className="admin-run-actions">
           <button className="admin-reset-button" disabled={running} onClick={clearRun}><RefreshCcw size={17} /> Clear</button>
@@ -303,7 +303,7 @@ export default function AdminOptimization() {
               <XCircle size={18} /> {cancelling ? "Cancelling..." : "Cancel Optimization"}
             </button>
           )}
-          <button className="admin-primary-button" disabled={!allReady || running || backendOnline === false} onClick={runOptimization}><Play size={18} /> Run Optimization & Get Prices</button>
+          <button className="admin-primary-button" disabled={!allReady || running || backendOnline === false} onClick={runOptimization}><Play size={18} /> Run Intelligent Controller & Get Prices</button>
         </div>
       </section>
 
@@ -333,7 +333,7 @@ export default function AdminOptimization() {
           <div className="admin-results-heading">
             <div>
               <p>TOMORROW FORECAST OUTPUT</p>
-              <h2>Optimization Results — {formatDateLabel(result.targetDate)}</h2>
+              <h2>Intelligent Controller Results — {formatDateLabel(result.targetDate)}</h2>
               
             </div>
             <div className="optimization-result-actions">
@@ -349,7 +349,7 @@ export default function AdminOptimization() {
           <article className="admin-panel tomorrow-result-panel">
             <div className="admin-panel-heading">
               <div><h2>Generated 15-Minute Public Price Signal</h2><p>Forecast public charging price for tomorrow.</p></div>
-              <div className="forecast-price-range"><span>Low Rs. {metrics.priceMinimumLKRkWh.toFixed(2)}</span><span>Avg Rs. {metrics.priceAverageLKRkWh.toFixed(2)}</span><span>High Rs. {metrics.priceMaximumLKRkWh.toFixed(2)}</span></div>
+              <div className="forecast-price-range"><span>Low Rs. {metrics.priceMinimumLKRkWh.toFixed(2)}</span><span>High Rs. {metrics.priceMaximumLKRkWh.toFixed(2)}</span></div>
             </div>
             <PriceChart prices={result.priceSignal} variant="forecast" />
           </article>
@@ -371,7 +371,7 @@ export default function AdminOptimization() {
       {history.length > 0 && (
         <section className="admin-panel" style={{ marginTop: 22 }}>
           <div className="admin-panel-heading">
-            <div><h2>Previous Optimization Runs</h2></div>
+            <div><h2>Previous Intelligent Controller Runs</h2></div>
           </div>
           <div className="forecast-download-row" style={{ flexWrap: "wrap", justifyContent: "flex-start" }}>
             {history.map((item) => (
