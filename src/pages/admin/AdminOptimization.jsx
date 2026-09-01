@@ -9,6 +9,7 @@ import {
   ExternalLink,
   DatabaseZap,
   BellRing,
+  XCircle,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -16,6 +17,7 @@ import PriceChart from "../../components/PriceChart";
 import { useStationData } from "../../context/StationDataContext";
 import {
   checkOptimizerHealth,
+  cancelOptimizerRun,
   getLatestOptimizerResult,
   getOptimizerHistory,
   getOptimizerJob,
@@ -30,7 +32,6 @@ const INPUTS = [
   { key: "pv", filename: "pv.txt", title: "Forecast PV Generation", accept: ".txt,text/plain", description: "Tomorrow's PV generation profile." },
   { key: "primaryElastic", filename: "Primary_Elastic_EV_Users.xlsx", title: "Primary & Elastic EV Users", accept: ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", description: "Generate this from Admin → Bookings: fixed base users plus tomorrow's website bookings." },
   { key: "gridPrice", filename: "grid_price_input_used.csv", title: "Forecast Grid Price Input", accept: ".csv,text/csv", description: "Tomorrow's 96-slot grid import and export price signals." },
-  { key: "bessProfile", filename: "BESS_Profile_5300.txt", title: "Forecast BESS Profile", accept: ".txt,text/plain", description: "Tomorrow's BESS profile input supplied with the optimizer workflow." },
 ];
 
 function money(value) {
@@ -51,6 +52,7 @@ export default function AdminOptimization() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [publishing, setPublishing] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
   const [history, setHistory] = useState([]);
   const [restoring, setRestoring] = useState(true);
   const tomorrow = getTomorrowDateKey();
@@ -98,6 +100,9 @@ export default function AdminOptimization() {
               station.setTomorrowOptimizationDraft(savedJob.result.priceSignal);
             } else if (savedJob.status === "error") {
               setError(savedJob.error || "The optimizer failed.");
+            } else if (savedJob.status === "cancelled") {
+              sessionStorage.removeItem(ACTIVE_JOB_KEY);
+              setMessage("The previous optimization run was cancelled.");
             }
           } catch {
             sessionStorage.removeItem(ACTIVE_JOB_KEY);
@@ -131,6 +136,11 @@ export default function AdminOptimization() {
           window.clearInterval(timer);
         } else if (next.status === "error") {
           setError(next.error || "The optimizer failed.");
+          window.clearInterval(timer);
+        } else if (next.status === "cancelled") {
+          sessionStorage.removeItem(ACTIVE_JOB_KEY);
+          setError("");
+          setMessage("Optimization cancelled. You can change the inputs and start a new run.");
           window.clearInterval(timer);
         }
       } catch (pollError) {
@@ -166,6 +176,23 @@ export default function AdminOptimization() {
       setJob({ ...started, phase: "Uploading validated forecast inputs", progress: 5 });
     } catch (runError) {
       setError(runError.message);
+    }
+  }
+
+  async function cancelOptimization() {
+    if (!job?.jobId || !running || cancelling) return;
+    setCancelling(true);
+    setError("");
+    setMessage("");
+    try {
+      const cancelledJob = await cancelOptimizerRun(job.jobId);
+      setJob(cancelledJob);
+      sessionStorage.removeItem(ACTIVE_JOB_KEY);
+      setMessage("Optimization cancelled. You can change the inputs and start a new run.");
+    } catch (cancelError) {
+      setError(cancelError.message || "The optimization could not be cancelled.");
+    } finally {
+      setCancelling(false);
     }
   }
 
@@ -224,7 +251,7 @@ export default function AdminOptimization() {
         <div>
           <p>PYTHON MILP OPTIMIZER</p>
           <h1>Tomorrow Forecast & Price Optimization</h1>
-          <span>Upload all four forecast inputs for {formatDateLabel(tomorrow)}, run the supplied Python optimizer, review the new forecast results, then publish tomorrow's 96-slot public price.</span>
+          <span>Upload the three forecast inputs for {formatDateLabel(tomorrow)}, run the supplied Python optimizer, review the new forecast results, then publish tomorrow's 96-slot public price.</span>
         </div>
       </div>
 
@@ -243,7 +270,7 @@ export default function AdminOptimization() {
         </section>
       )}
 
-      <section className="admin-upload-grid optimizer-four-inputs">
+      <section className="admin-upload-grid three-inputs">
         {INPUTS.map((input) => {
           const file = files[input.key];
           return (
@@ -260,11 +287,21 @@ export default function AdminOptimization() {
 
       <section className="admin-run-panel optimizer-run-bar">
         <div>
-          <strong>Input readiness: {INPUTS.filter((input) => files[input.key]).length}/4 files</strong>
+          <strong>Input readiness: {INPUTS.filter((input) => files[input.key]).length}/3 files</strong>
           <span>All uploaded values and optimizer outputs represent forecasts for tomorrow.</span>
         </div>
         <div className="admin-run-actions">
           <button className="admin-reset-button" disabled={running} onClick={clearRun}><RefreshCcw size={17} /> Clear</button>
+          {running && (
+            <button
+              className="admin-secondary-button"
+              style={{ color: "#ff9f9f", borderColor: "rgba(255, 93, 93, 0.32)" }}
+              disabled={cancelling}
+              onClick={cancelOptimization}
+            >
+              <XCircle size={18} /> {cancelling ? "Cancelling..." : "Cancel Optimization"}
+            </button>
+          )}
           <button className="admin-primary-button" disabled={!allReady || running || backendOnline === false} onClick={runOptimization}><Play size={18} /> Run Optimization & Get Prices</button>
         </div>
       </section>
@@ -275,7 +312,7 @@ export default function AdminOptimization() {
           <div>
             <span>OPTIMIZER RUNNING</span>
             <h2>{job?.phase || "Running optimization..."}</h2>
-            <p>The MILP model is running for tomorrow's forecast. Do not close the backend terminal while this job is active.</p>
+            <p>The MILP model is running for tomorrow's forecast. Use Cancel Optimization if you need to stop this run; do not close the backend terminal while it is active.</p>
             <div className="optimizer-progress-track"><i style={{ width: `${Math.max(8, job?.progress || 0)}%` }} /></div>
           </div>
         </section>
